@@ -33,7 +33,7 @@ def make_instances(cfg: DictConfig):
 def rollout(env, agent, replay_buffer, epsilon):
     obs, act_set, returns, done, info = env.reset()
     while not done:
-        action = agent.act(obs, act_set)
+        action = agent.act(obs, act_set, epsilon)
         replay_buffer.accumulate(obs, action)
         obs, act_set, returns, done, info = env.step(action)
     replay_buffer.add_returns(returns)
