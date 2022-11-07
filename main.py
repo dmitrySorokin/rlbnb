@@ -1,6 +1,5 @@
-#from utils import generate_craballoc, generate_tsp
-
 import ecole
+import torch
 
 import hydra
 from hydra.core.hydra_config import HydraConfig
@@ -9,6 +8,7 @@ from env import EcoleBranching
 from utils import generate_tsp, generate_craballoc
 import numpy as np
 from pprint import pprint
+from agent import Agent
 
 
 def make_instances(cfg: DictConfig):
@@ -34,13 +34,14 @@ def make_instances(cfg: DictConfig):
 def main(cfg: DictConfig):
     env = EcoleBranching(make_instances(cfg))
     obs, act_set, reward, done, info = env.reset()
+    agent = Agent(device='cpu')
 
     while not done:
-        obs, act_set, reward, done, info = env.step(np.random.choice(act_set))
-        pprint(reward)
+        action = agent.act(obs, act_set)
+        obs, act_set, reward, done, info = env.step(action)
+
+    pprint(reward)
     print(info)
-
-
 
 
 if __name__ == '__main__':
