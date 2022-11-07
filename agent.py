@@ -255,7 +255,7 @@ class Agent:
 
     def update(self, obs_batch, act_batch, ret_batch):
         self.opt.zero_grad()
-        loss = torch.tensor(0., requires_grad=True)
+        loss = 0
         # TODO use torch_geometric.data.Batch
         for obs, act, ret in zip(obs_batch, act_batch, ret_batch):
             pred = self.net(obs)[act]
