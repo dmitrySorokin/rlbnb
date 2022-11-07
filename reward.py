@@ -20,7 +20,7 @@ def postorder(graph, root):
 class RetroBranching:
     def __init__(self):
         self.normalised_lp_gain = NormalisedLPGain()
-        self.debug_mode = True
+        self.debug_mode = False
 
     def before_reset(self, model):
         self.normalised_lp_gain.before_reset(model)

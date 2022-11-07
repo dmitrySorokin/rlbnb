@@ -261,3 +261,6 @@ class Agent:
             action_idx = torch.argmax(preds)
             action = action_set[action_idx.item()]
         return action
+
+    def update(self, obs_batch, act_batch, ret_batch):
+        pass
