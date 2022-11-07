@@ -38,11 +38,6 @@ class RetroBranching:
             # instance was pre-solved
             return {0: 0}
 
-        # map which nodes were visited at which step in episode
-        visited_nodes_to_step_idx = {
-            node: idx for idx, node in enumerate(self.normalised_lp_gain.tree.tree.graph['visited_node_ids'])
-        }
-
         # remove nodes which were never visited by the brancher and therefore do not have a score or next state
         nodes = [node for node in self.normalised_lp_gain.tree.tree.nodes]
         for node in nodes:
@@ -54,6 +49,11 @@ class RetroBranching:
                     if self.debug_mode:
                         print(f'Removing node {node} since was never visited by brancher.')
                     self.normalised_lp_gain.tree.tree.graph['visited_node_ids'].remove(node)
+
+        # map which nodes were visited at which step in episode
+        visited_nodes_to_step_idx = {
+            node: idx for idx, node in enumerate(self.normalised_lp_gain.tree.tree.graph['visited_node_ids'])
+        }
 
         postorder(
             self.normalised_lp_gain.tree.tree,
