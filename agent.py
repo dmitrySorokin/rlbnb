@@ -1,6 +1,7 @@
 import torch
 import torch_geometric
 import numpy as np
+from torch_geometric.data import Batch
 
 
 class BipartiteGraphConvolution(torch_geometric.nn.MessagePassing):
@@ -195,35 +196,24 @@ class BipartiteGCN(torch.nn.Module):
             for h in self.heads_module:
                 h.apply(init_params)
 
-    def forward(self, *_obs, print_warning=True):
-        if len(_obs) > 1:
-            # no need to pre-process observation features
-            # if len(_obs) == 4:
-            # # old obs where had pointless edge features
-            # constraint_features, edge_indices, _, variable_features = _obs
-            # else:
-            # constraint_features, edge_indices, variable_features = _obs
-            constraint_features, edge_indices, edge_features, variable_features = _obs
+    def forward(self, obs):
+        constraint_features = torch.from_numpy(
+            obs.row_features.astype(np.float32)
+        ).to(self.device)
 
-            # convert to tensors if needed
-            if isinstance(constraint_features, np.ndarray):
-                constraint_features = torch.from_numpy(constraint_features).to(self.device)
-            if isinstance(edge_indices, np.ndarray):
-                edge_indices = torch.LongTensor(edge_indices).to(self.device)
-            if isinstance(edge_features, np.ndarray):
-                edge_features = torch.from_numpy(edge_features).to(self.device).unsqueeze(1)
-            if isinstance(variable_features, np.ndarray):
-                variable_features = torch.from_numpy(variable_features).to(self.device)
+        edge_indices = torch.LongTensor(
+            obs.edge_features.indices.astype(np.int16)
+        ).to(self.device)
 
-        else:
-            # need to pre-process observation features
-            obs = _obs[0]  # unpack
-            constraint_features = torch.from_numpy(obs.row_features.astype(np.float32)).to(self.device)
-            # edge_indices = torch.from_numpy(obs.edge_features.indices.astype(np.int16)).to(self.device)
-            edge_indices = torch.LongTensor(obs.edge_features.indices.astype(np.int16)).to(self.device)
-            edge_features = torch.from_numpy(obs.edge_features.values.astype(np.float32)).view(-1, 1).to(self.device)
-            variable_features = torch.from_numpy(obs.variable_features.astype(np.float32)).to(self.device)
+        edge_features = torch.from_numpy(
+            obs.edge_features.values.astype(np.float32)
+        ).view(-1, 1).to(self.device)
 
+        variable_features = torch.from_numpy(
+            obs.variable_features.astype(np.float32)
+        ).to(self.device)
+
+        # print(constraint_features.shape, edge_indices.shape, edge_features.shape, variable_features.shape)
         reversed_edge_indices = torch.stack([edge_indices[1], edge_indices[0]], dim=0)
 
         # First step: linear embedding layers to a common dimension (64)
@@ -250,9 +240,11 @@ class Agent:
     def __init__(self, device, epsilon=0.1):
         self.net = BipartiteGCN(device=device, var_nfeats=24)
         self.epsilon = epsilon
+        self.opt = torch.optim.Adam(self.net.parameters())
 
     def act(self, obs, action_set, deterministic=False):
-        preds = self.net(obs)[action_set.astype('int32')]
+        with torch.no_grad():
+            preds = self.net(obs)[action_set.astype('int32')]
 
         # single observation
         if np.random.rand() < self.epsilon * (1 - deterministic):
@@ -263,4 +255,26 @@ class Agent:
         return action
 
     def update(self, obs_batch, act_batch, ret_batch):
-        pass
+        self.opt.zero_grad()
+        loss = 0
+        # TODO use torch_geometric.data.Batch
+        for obs, act, ret in zip(obs_batch, act_batch, ret_batch):
+            pred = self.net(obs)[act]
+            loss += (pred - ret) ** 2
+        loss.backward()
+        self.opt.step()
+        return loss.detach().cpu().item()
+
+    def save(self, path, epoch_id):
+        torch.save(self.net.state_dict(), path + f'/checkpoint_{epoch_id}.pkl')
+
+    def load(self, path, epoch_id):
+        self.net.load_state_dict(
+            torch.load(path + f'/checkpoint_{epoch_id}.pkl', map_location=self.net.device)
+        )
+
+    def train(self):
+        self.net.train()
+
+    def eval(self):
+        self.net.eval()

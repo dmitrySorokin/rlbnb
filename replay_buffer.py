@@ -3,7 +3,7 @@ import ecole
 
 
 class ReplayBuffer:
-    def __init__(self, max_size=50000, start_size=10000, batch_size=32):
+    def __init__(self, max_size=50000, start_size=10, batch_size=32):
         self.max_size = max_size
         self.start_size = start_size
         self.size = 0
