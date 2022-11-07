@@ -237,17 +237,16 @@ class BipartiteGCN(torch.nn.Module):
 
 
 class Agent:
-    def __init__(self, device, epsilon=0.1):
+    def __init__(self, device):
         self.net = BipartiteGCN(device=device, var_nfeats=24)
-        self.epsilon = epsilon
         self.opt = torch.optim.Adam(self.net.parameters())
 
-    def act(self, obs, action_set, deterministic=False):
+    def act(self, obs, action_set, epsilon):
         with torch.no_grad():
             preds = self.net(obs)[action_set.astype('int32')]
 
         # single observation
-        if np.random.rand() < self.epsilon * (1 - deterministic):
+        if np.random.rand() < epsilon:
             action = np.random.choice(action_set)
         else:
             action_idx = torch.argmax(preds)
