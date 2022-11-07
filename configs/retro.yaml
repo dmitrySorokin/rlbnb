@@ -15,6 +15,6 @@ instances:
 experiment:
   seed: 0
   device: 'cpu'
-  num_epochs: 1000000
+  num_updates: 1000000
   buffer_max_size: 10000
   buffer_start_size: 1000

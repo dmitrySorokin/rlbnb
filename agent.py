@@ -256,11 +256,11 @@ class Agent:
 
     def update(self, obs_batch, act_batch, ret_batch):
         self.opt.zero_grad()
-        loss = 0
+        loss = torch.tensor(0, requires_grad=True)
         # TODO use torch_geometric.data.Batch
         for obs, act, ret in zip(obs_batch, act_batch, ret_batch):
             pred = self.net(obs)[act]
-            loss += (pred - ret) ** 2
+            loss += ((pred - ret) ** 2) / len(obs_batch)
         loss.backward()
         self.opt.step()
         return loss.detach().cpu().item()

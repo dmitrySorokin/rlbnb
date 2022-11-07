@@ -55,13 +55,13 @@ def main(cfg: DictConfig):
         start_size=cfg.experiment.buffer_start_size
     )
 
-    pbar = tqdm(total=replay_buffer.start_size, desc='init...')
+    pbar = tqdm(total=replay_buffer.start_size, desc='init')
     while not replay_buffer.is_ready():
         num_obs, _ = rollout(env, agent, replay_buffer)
         pbar.update(num_obs)
     pbar.close()
 
-    pbar = tqdm(total=cfg.experiment.num_updates, desc='train...')
+    pbar = tqdm(total=cfg.experiment.num_updates, desc='train')
     update = 0
     episode = 0
     while update < pbar.total:
