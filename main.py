@@ -75,7 +75,7 @@ def main(cfg: DictConfig):
         writer.add_scalar('episode/solving_time', info['solving_time'], episode)
         print(episode, info['num_nodes'])
         episode += 1
-        for i in range(max(num_obs, 100)):
+        for i in range(min(num_obs, 100)):
             obs, act, ret = replay_buffer.sample()
             loss = agent.update(obs, act, ret)
             writer.add_scalar('update/loss', loss, update)
