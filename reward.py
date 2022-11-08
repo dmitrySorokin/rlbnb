@@ -62,7 +62,7 @@ class RetroBranching:
 
         step_idx_to_reward = {}
         for node, step_idx in visited_nodes_to_step_idx.items():
-            step_idx_to_reward[step_idx] = -self.normalised_lp_gain.tree.tree.nodes[node]['subtree'] + 1
+            step_idx_to_reward[step_idx] = -np.log(self.normalised_lp_gain.tree.tree.nodes[node]['subtree'])
 
         if self.debug_mode:
             print('\nB&B tree:')
