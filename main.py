@@ -3,7 +3,7 @@ import ecole
 import hydra
 from omegaconf import DictConfig, OmegaConf
 from env import EcoleBranching
-from utils import generate_tsp, generate_craballoc
+from tasks import generate_tsp, generate_craballoc
 from agent import Agent
 from replay_buffer import ReplayBuffer
 from tqdm import tqdm
