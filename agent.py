@@ -2,6 +2,7 @@ import torch
 import torch_geometric
 import numpy as np
 from torch_geometric.data import Batch
+import ecole
 
 
 class BipartiteGraphConvolution(torch_geometric.nn.MessagePassing):
@@ -236,7 +237,7 @@ class BipartiteGCN(torch.nn.Module):
         return head_output
 
 
-class Agent:
+class DQNAgent:
     def __init__(self, device):
         self.net = BipartiteGCN(device=device, var_nfeats=24)
         self.opt = torch.optim.Adam(self.net.parameters())
@@ -277,3 +278,18 @@ class Agent:
 
     def eval(self):
         self.net.eval()
+
+
+class StrongAgent:
+    def __init__(self, device):
+        self.strong_branching_function = ecole.observation.StrongBranchingScores()
+
+    def before_reset(self, model):
+        self.strong_branching_function.before_reset(model)
+
+    def act(self, model, done):
+        print(self.strong_branching_function.extract(model, done))
+        return None
+
+    def eval(self):
+        pass

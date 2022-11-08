@@ -4,7 +4,7 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 from env import EcoleBranching
 from tasks import generate_tsp, generate_craballoc
-from agent import Agent
+from agent import DQNAgent, StrongAgent
 from replay_buffer import ReplayBuffer
 from tqdm import tqdm
 import os
@@ -47,7 +47,7 @@ def main(cfg: DictConfig):
     env = EcoleBranching(make_instances(cfg))
     env.seed(cfg.experiment.seed)
 
-    agent = Agent(device=cfg.experiment.device)
+    agent = DQNAgent(device=cfg.experiment.device)
     agent.train()
 
     replay_buffer = ReplayBuffer(
