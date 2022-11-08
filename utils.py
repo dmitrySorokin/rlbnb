@@ -292,7 +292,7 @@ def get_most_recent_checkpoint_foldername(path, idx=-1):
     most recent checkpoint folder).
     '''
     foldernames = [name.split('_') for name in os.listdir(path)]
-    idx_to_num = {idx: int(num) for idx, num in zip(range(len(foldernames)), [name[-1] for name in foldernames if name[0] == 'checkpoint'])}
+    idx_to_num = {idx: int(num[:-4]) for idx, num in zip(range(len(foldernames)), [name[1] for name in foldernames if name[0] == 'checkpoint'])}
     sorted_indices = np.argsort(list(idx_to_num.values()))
     _idx = sorted_indices[idx]
     foldername = [name for name in os.listdir(path) if name.split('_')[0] == 'checkpoint'][_idx]

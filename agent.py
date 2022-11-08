@@ -267,9 +267,9 @@ class Agent:
     def save(self, path, epoch_id):
         torch.save(self.net.state_dict(), path + f'/checkpoint_{epoch_id}.pkl')
 
-    def load(self, path, epoch_id):
+    def load(self, path):
         self.net.load_state_dict(
-            torch.load(path + f'/checkpoint_{epoch_id}.pkl', map_location=self.net.device)
+            torch.load(path, map_location=self.net.device)
         )
 
     def train(self):

@@ -42,3 +42,7 @@ class EcoleBranching(ecole.environment.Branching):
             obs, act_set, reward, done, info = super(EcoleBranching, self).reset(instance)
             if not done:
                 return obs, act_set, reward, done, info
+
+    def eval_reset(self):
+        for instance in self.instance_gen:
+            return super(EcoleBranching, self).reset(instance)
