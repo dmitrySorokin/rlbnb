@@ -57,7 +57,7 @@ def main(cfg: DictConfig):
 
     epsilon = 1
     epsilon_min = 0.01
-    epsilon_decay = 0.9995
+    epsilon_decay = 0.99995
 
     pbar = tqdm(total=replay_buffer.start_size, desc='init')
     while not replay_buffer.is_ready():
@@ -75,7 +75,7 @@ def main(cfg: DictConfig):
         writer.add_scalar('episode/solving_time', info['solving_time'], episode)
         print(episode, info['num_nodes'])
         episode += 1
-        for i in range(num_obs):
+        for i in range(max(num_obs, 100)):
             obs, act, ret = replay_buffer.sample()
             loss = agent.update(obs, act, ret)
             writer.add_scalar('update/loss', loss, update)
