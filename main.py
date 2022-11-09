@@ -39,7 +39,6 @@ def rollout(env, agent, replay_buffer, epsilon, max_tree_size=100):
         action = agent.act(obs, act_set, epsilon)
         traj_obs.append(obs)
         traj_act.append(action)
-        replay_buffer.accumulate(obs, action)
         obs, act_set, returns, done, info = env.step(action)
 
     assert len(traj_obs) == len(returns)
@@ -54,7 +53,7 @@ def rollout(env, agent, replay_buffer, epsilon, max_tree_size=100):
     return len(returns), info
 
 
-@hydra.main(config_path='configs', config_name='config.yaml')
+@hydra.main(config_path='configs', config_name='retro.yaml')
 def main(cfg: DictConfig):
     writer = SummaryWriter(os.getcwd())
 
