@@ -42,8 +42,8 @@ def rollout(env, agent, replay_buffer, epsilon, max_tree_size=100):
         obs, act_set, returns, done, info = env.step(action)
 
     assert len(traj_obs) == len(returns)
-    size = min(len(traj_obs), max_tree_size)
-    ids = np.random.choice(range(size), size, replace=False)
+    tree_size = len(traj_obs)
+    ids = np.random.choice(range(tree_size), min(tree_size, max_tree_size), replace=False)
     traj_obs = np.asarray(traj_obs)[ids]
     traj_act = np.asarray(traj_act)[ids]
     traj_ret = np.asarray(returns)[ids]
