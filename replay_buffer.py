@@ -13,21 +13,6 @@ class ReplayBuffer:
         self.act = np.zeros(max_size, int)
         self.ret = np.zeros(max_size, float)
 
-        self.traj_obs = []
-        self.traj_act = []
-
-    def accumulate(self, obs, act):
-        self.traj_obs.append(obs)
-        self.traj_act.append(act)
-
-    def add_returns(self, ret):
-        assert len(ret) == len(self.traj_obs), f'{len(ret)} != {len(self.traj_obs)}'
-
-        for step, val in ret.items():
-            self.add_transition(self.traj_obs[step], self.traj_act[step], val)
-        self.traj_obs = []
-        self.traj_act = []
-
     def add_transition(self, obs, act, ret):
         self.insert_idx = self.insert_idx % self.max_size
         self.obs[self.insert_idx] = obs

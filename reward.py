@@ -1,11 +1,5 @@
-
-import math
-import random
 import numpy as np
 from normalised_lp_gain import NormalisedLPGain
-
-from networkx.algorithms.shortest_paths.generic import shortest_path
-from networkx.algorithms.traversal.depth_first_search import dfs_tree
 
 
 def postorder(graph, root):
@@ -50,25 +44,20 @@ class RetroBranching:
                         print(f'Removing node {node} since was never visited by brancher.')
                     self.normalised_lp_gain.tree.tree.graph['visited_node_ids'].remove(node)
 
-        # map which nodes were visited at which step in episode
-        visited_nodes_to_step_idx = {
-            node: idx for idx, node in enumerate(self.normalised_lp_gain.tree.tree.graph['visited_node_ids'])
-        }
-
         postorder(
             self.normalised_lp_gain.tree.tree,
             list(self.normalised_lp_gain.tree.tree.graph['root_node'].keys())[0]
         )
 
-        step_idx_to_reward = {}
-        for node, step_idx in visited_nodes_to_step_idx.items():
-            step_idx_to_reward[step_idx] = -np.log(self.normalised_lp_gain.tree.tree.nodes[node]['subtree'])
+        rewards = []
+        for node in self.normalised_lp_gain.tree.tree.graph['visited_node_ids']:
+            rewards.append(-np.log(self.normalised_lp_gain.tree.tree.nodes[node]['subtree']))
 
         if self.debug_mode:
             print('\nB&B tree:')
             print(f'All nodes saved: {self.normalised_lp_gain.tree.tree.nodes()}')
             print(f'Visited nodes: {self.normalised_lp_gain.tree.tree.graph["visited_node_ids"]}')
-            print(step_idx_to_reward)
+            print(rewards)
             self.normalised_lp_gain.tree.render()
 
-        return step_idx_to_reward
+        return rewards

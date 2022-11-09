@@ -1,6 +1,7 @@
 import ecole
 
 import hydra
+import numpy as np
 from omegaconf import DictConfig, OmegaConf
 from env import EcoleBranching
 from tasks import generate_tsp, generate_craballoc
@@ -30,13 +31,26 @@ def make_instances(cfg: DictConfig):
     return instances
 
 
-def rollout(env, agent, replay_buffer, epsilon):
+def rollout(env, agent, replay_buffer, epsilon, max_tree_size=100):
     obs, act_set, returns, done, info = env.reset()
+    traj_obs, traj_act = [], []
+
     while not done:
         action = agent.act(obs, act_set, epsilon)
+        traj_obs.append(obs)
+        traj_act.append(action)
         replay_buffer.accumulate(obs, action)
         obs, act_set, returns, done, info = env.step(action)
-    replay_buffer.add_returns(returns)
+
+    assert len(traj_obs) == len(returns)
+    size = min(len(traj_obs), max_tree_size)
+    ids = np.random.choice(range(size), size, replace=False)
+    traj_obs = np.asarray(traj_obs)[ids]
+    traj_act = np.asarray(traj_act)[ids]
+    traj_ret = np.asarray(returns)[ids]
+    for obs, act, ret in zip(traj_obs, traj_act, traj_ret):
+        replay_buffer.add_transition(obs, act, ret)
+
     return len(returns), info
 
 
@@ -57,7 +71,7 @@ def main(cfg: DictConfig):
 
     epsilon = 1
     epsilon_min = 0.01
-    epsilon_decay = 0.99995
+    epsilon_decay = cfg.experiment.epsilon_decay
 
     pbar = tqdm(total=replay_buffer.start_size, desc='init')
     while not replay_buffer.is_ready():
