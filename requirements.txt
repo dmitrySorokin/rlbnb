@@ -1,0 +1,2 @@
+tensorboardX
+git+ssh://git@github.com/ivannz/branching-crustaceans.git#crab-alloc
