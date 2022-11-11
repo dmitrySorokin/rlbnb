@@ -1,0 +1,13 @@
+instances:
+  co_class: 'crabs'
+  co_class_kwargs:
+    n_time: 12
+    n_resources: 20
+    n_ships: 35
+
+agent:
+  name: 'dqn'
+  epsilon: 0.1
+  checkpoint: 'outputs/07-47-02/checkpoint_120081.pkl'
+
+output: 'results/dqn.csv'

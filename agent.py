@@ -281,15 +281,16 @@ class DQNAgent:
 
 
 class StrongAgent:
-    def __init__(self, device):
+    def __init__(self, env):
         self.strong_branching_function = ecole.observation.StrongBranchingScores()
+        self.env = env
 
     def before_reset(self, model):
         self.strong_branching_function.before_reset(model)
 
-    def act(self, model, done):
-        print(self.strong_branching_function.extract(model, done))
-        return None
+    def act(self, obs, action_set, epsilon):
+        scores = self.strong_branching_function.extract(self.env.model, False)[action_set]
+        return action_set[np.argmax(scores)]
 
     def eval(self):
         pass

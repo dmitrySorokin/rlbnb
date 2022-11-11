@@ -1,0 +1,12 @@
+instances:
+  co_class: 'crabs'
+  co_class_kwargs:
+    n_time: 12
+    n_resources: 20
+    n_ships: 35
+
+agent:
+  name: 'random'
+  epsilon: 1
+
+output: 'results/random.csv'
