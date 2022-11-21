@@ -8,6 +8,6 @@ instances:
 agent:
   name: 'dqn'
   epsilon: 0.1
-  checkpoint: 'outputs/07-47-02/checkpoint_120081.pkl'
+  checkpoint: 'outputs/crabs/checkpoint_120081.pkl'
 
 output: 'results/dqn.csv'
