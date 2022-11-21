@@ -260,7 +260,7 @@ class DQNAgent:
         # TODO use torch_geometric.data.Batch
         for obs, act, ret in zip(obs_batch, act_batch, ret_batch):
             pred = self.net(obs)[act]
-            loss += ((pred - ret) ** 2) / len(obs_batch)
+            loss += ((pred - ret) ** 2) / len(obs_batch) * np.abs(ret)
         loss.backward()
         self.opt.step()
         return loss.detach().cpu().item()
