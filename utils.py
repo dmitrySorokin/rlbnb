@@ -346,23 +346,18 @@ class BipartiteNodeData(torch_geometric.data.Data):
     observation function in a format understood by the pytorch geometric data handlers.
     """
     def __init__(self, 
-                 constraint_features=None, 
-                 edge_indices=None, 
-                 edge_features=None, 
-                 variable_features=None,
-                 candidates=None, 
-                 candidate_choice=None, 
-                 candidate_scores=None, 
+                 observation=None,
+                 candidates=None,
+                 candidate_choice=None,
+                 candidate_scores=None,
                  score=None):
         super().__init__()
-        if constraint_features is not None:
-            self.constraint_features = torch.FloatTensor(constraint_features)
-        if edge_indices is not None:
-            self.edge_index = torch.LongTensor(edge_indices.astype(np.int64))
-        if edge_features is not None:
-            self.edge_attr = torch.FloatTensor(edge_features).unsqueeze(1)
-        if variable_features is not None:
-            self.variable_features = torch.FloatTensor(variable_features)
+
+        if observation is not None:
+            self.constraint_features = torch.FloatTensor(observation.row_features)
+            self.variable_features = torch.FloatTensor(observation.variable_features)
+            self.edge_index = torch.LongTensor(observation.edge_features.indices.astype(np.int64))
+            self.edge_attr = torch.FloatTensor(observation.edge_features.values).unsqueeze(1)
         if candidates is not None:
             self.candidates = torch.LongTensor(candidates)
             self.num_candidates = len(candidates)
@@ -385,14 +380,85 @@ class BipartiteNodeData(torch_geometric.data.Data):
         else:
             return super().__inc__(key, value)
 
+
+class UnpackedTripartite:
+    def __init__(self, observation, device):
+        self.constraint_features = torch.FloatTensor(observation.row_features).to(device)
+        self.variable_features = torch.FloatTensor(observation.variable_features).to(device)
+        self.cut_features = torch.FloatTensor(observation.cut_features).to(device)
+        self.edge_index = torch.LongTensor(observation.edge_features.indices.astype(np.int64)).to(device)
+        self.edge_features = torch.FloatTensor(observation.edge_features.values).unsqueeze(1).to(device)
+        self.cut_col_edge_index = torch.LongTensor(observation.cut_col_edge_features.indices.astype(np.int64)).to(device)
+        self.cut_col_edge_features = torch.FloatTensor(observation.cut_col_edge_features.values).unsqueeze(1).to(device)
+        self.cut_row_edge_index = torch.LongTensor(observation.cut_row_edge_features.indices.astype(np.int64)).to(device)
+        self.cut_row_edge_features = torch.FloatTensor(observation.cut_row_edge_features.values).unsqueeze(1).to(device)
+
+
+class TripartiteNodeData(torch_geometric.data.Data):
+    def __init__(self,
+                 observation=None,
+                 candidates=None,
+                 candidate_choice=None,
+                 candidate_scores=None,
+                 score=None):
+        super().__init__()
+
+        if observation is not None:
+            self.constraint_features = torch.FloatTensor(observation.row_features)
+            self.variable_features = torch.FloatTensor(observation.variable_features)
+            self.cut_features = torch.FloatTensor(observation.cut_features)
+            self.edge_index = torch.LongTensor(observation.edge_features.indices.astype(np.int64))
+            self.edge_features = torch.FloatTensor(observation.edge_features.values).unsqueeze(1)
+            self.cut_col_edge_index = torch.LongTensor(observation.cut_col_edge_features.indices.astype(np.int64))
+            self.cut_col_edge_features = torch.FloatTensor(observation.cut_col_edge_features.values).unsqueeze(1)
+            self.cut_row_edge_index = torch.LongTensor(observation.cut_row_edge_features.indices.astype(np.int64))
+            self.cut_row_edge_features = torch.FloatTensor(observation.cut_row_edge_features.values).unsqueeze(1)
+        if candidates is not None:
+            self.candidates = torch.LongTensor(candidates)
+            self.num_candidates = len(candidates)
+        if candidate_choice is not None:
+            self.candidate_choices = torch.LongTensor(candidate_choice)
+        if candidate_scores is not None:
+            self.candidate_scores = torch.FloatTensor(candidate_scores)
+        if score is not None:
+            self.score = torch.FloatTensor(score)
+
+    def __inc__(self, key, value, *args, **kwargs):
+        """
+        We overload the pytorch geometric method that tells how to increment indices when concatenating graphs
+        for those entries (edge index, candidates) for which this is not obvious.
+        """
+        #print(key)
+        if key == 'edge_index':
+        #    print(self.constraint_features.size(0), self.variable_features.size(0))
+            return torch.tensor([[self.constraint_features.size(0)], [self.variable_features.size(0)]])
+        if key == 'cut_col_edge_index':
+        #    #print(self.cut_features.size(0), self.variable_features.size(0))
+            return torch.tensor([[self.cut_features.size(0)], [self.variable_features.size(0)]])
+        if key == 'cut_row_edge_index':
+            #print(self.cut_features.size(0), self.constraint_features.size(0))
+            return torch.tensor([[self.cut_features.size(0)], [self.constraint_features.size(0)]])
+        if key == 'candidates':
+            #print(self.variable_features.size(0))
+            return self.variable_features.size(0)
+        else:
+            return super().__inc__(key, value)
+
+
 class GraphDataset(torch_geometric.data.Dataset):
     """
     This class encodes a collection of graphs, as well as a method to load such graphs from the disk.
     It can be used in turn by the data loaders provided by pytorch geometric.
     """
-    def __init__(self, sample_files):
+    def __init__(self, sample_files, observation_format='bipartite'):
         super().__init__(root=None, transform=None, pre_transform=None)
         self.sample_files = sample_files
+        assert observation_format in ['bipartite', 'tripartite'], 'Not implemented'
+        self.observation_node = BipartiteNodeData if observation_format == 'bipartite' else TripartiteNodeData
+
+        self.get_num_nodes = (lambda obs: obs.row_features.shape[0]+obs.variable_features.shape[0])\
+                             if observation_format == 'bipartite' else \
+                             (lambda obs: obs.row_features.shape[0]+obs.variable_features.shape[0]+obs.cut_features.shape[0])
 
     def len(self):
         return len(self.sample_files)
@@ -418,24 +484,12 @@ class GraphDataset(torch_geometric.data.Dataset):
             candidate_scores = []
         candidate_choice = torch.where(candidates == sample_action)[0][0]
 
-        graph = BipartiteNodeData(sample_observation.row_features, sample_observation.edge_features.indices, 
-                                  sample_observation.edge_features.values, sample_observation.variable_features,
-                                  candidates, candidate_choice, candidate_scores, score)
+        graph = self.observation_node(sample_observation, candidates, candidate_choice, candidate_scores, score)
         
         # We must tell pytorch geometric how many nodes there are, for indexing purposes
-        graph.num_nodes = sample_observation.row_features.shape[0]+sample_observation.variable_features.shape[0]
+        graph.num_nodes = self.get_num_nodes(sample_observation)
         
         return graph
-
-
-
-
-
-
-
-
-
-
 
 
 ################################### PLOTTING #################################
