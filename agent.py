@@ -404,7 +404,7 @@ class TripartiteGCN(torch.nn.Module):
         # print(constraint_features.shape, edge_indices.shape, edge_features.shape, variable_features.shape)
         reversed_edge_indices = torch.stack([edge_indices[1], edge_indices[0]], dim=0)
         reversed_cut_col_edge_indices = torch.stack([cut_col_edge_indices[1], cut_col_edge_indices[0]], dim=0)
-        reversed_cut_row_edge_indices = torch.stack([cut_col_edge_indices[1], cut_col_edge_indices[0]], dim=0)
+        reversed_cut_row_edge_indices = torch.stack([cut_row_edge_indices[1], cut_row_edge_indices[0]], dim=0)
 
         # First step: linear embedding layers to a common dimension (64)
         constraint_features = self.cons_embedding(constraint_features)
@@ -414,31 +414,24 @@ class TripartiteGCN(torch.nn.Module):
         cut_features = self.cut_embedding(cut_features)
 
         # Two half convolutions (message passing round)
-        print(1)
         constraint_features = self.conv_v_to_c(
             variable_features, reversed_edge_indices, edge_features, constraint_features
         )
-        print(2)
         variable_features = self.conv_c_to_v(
             constraint_features, edge_indices, edge_features, variable_features
         )
-        print(3)
         variable_features = self.conv_cut_to_v(
             cut_features, cut_col_edge_indices, cut_col_edge_features, variable_features
         )
-        print(4)
         cut_features = self.conv_v_to_cut(
             variable_features, reversed_cut_col_edge_indices, cut_col_edge_features, cut_features,
         )
-        print(5)
         constraint_features = self.conv_cut_to_c(
             cut_features, cut_row_edge_indices, cut_row_edge_features, constraint_features
         )
-        print(6)
         cut_features = self.conv_c_to_cut(
             constraint_features, reversed_cut_row_edge_indices, cut_row_edge_features, cut_features
         )
-        print(7)
 
         # get output for each head
         head_output = [self.heads_module[head](cut_features).squeeze(-1) for head in range(self.num_heads)]
@@ -534,7 +527,6 @@ class ImitationAgent:
 
     def eval(self):
         self.net.eval()
-
 
 
 class StrongAgent:
