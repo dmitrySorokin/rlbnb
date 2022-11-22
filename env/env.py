@@ -29,7 +29,7 @@ class EcoleBranching(ecole.environment.Branching):
         }
 
         super(EcoleBranching, self).__init__(
-            observation_function=NodeBipariteWith24VariableFeatures(),
+            observation_function=ecole.observation.NodeBipartite(),
             information_function=information_function,
             reward_function=reward_function,
             scip_params=gasse_2019_scip_params,
