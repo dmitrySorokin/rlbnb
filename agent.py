@@ -257,10 +257,14 @@ class DQNAgent:
     def update(self, obs_batch, act_batch, ret_batch):
         self.opt.zero_grad()
         loss = 0
+        norm_coef = 0
         # TODO use torch_geometric.data.Batch
         for obs, act, ret in zip(obs_batch, act_batch, ret_batch):
             pred = self.net(obs)[act]
-            loss += ((pred - ret) ** 2) / len(obs_batch) * np.abs(ret)
+            coef = np.clip(np.exp(np.abs(ret)), 0, 100)
+            loss += ((pred - ret) ** 2) * coef
+            norm_coef += coef
+        loss /= len(obs_batch) * norm_coef
         loss.backward()
         self.opt.step()
         return loss.detach().cpu().item()
