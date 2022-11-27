@@ -22,11 +22,8 @@ def rollout(env, agent, replay_buffer, epsilon, max_tree_size=100):
     assert len(traj_obs) == len(returns)
     tree_size = len(traj_obs)
     ids = np.random.choice(range(tree_size), min(tree_size, max_tree_size), replace=False)
-    traj_obs = np.asarray(traj_obs)[ids]
-    traj_act = np.asarray(traj_act)[ids]
-    traj_ret = np.asarray(returns)[ids]
-    for obs, act, ret in zip(traj_obs, traj_act, traj_ret):
-        replay_buffer.add_transition(obs, act, ret)
+    for j in ids:
+        replay_buffer.add_transition(traj_obs[j], traj_act[j], returns[j])
 
     return len(ids), info
 
@@ -35,7 +32,7 @@ def rollout(env, agent, replay_buffer, epsilon, max_tree_size=100):
 def main(cfg: DictConfig):
     writer = SummaryWriter(os.getcwd())
 
-    env = EcoleBranching(make_instances(cfg))
+    env = EcoleBranching(make_instances(cfg), cfg.experiment.reward_function)
     env.seed(cfg.experiment.seed)
 
     agent = DQNAgent(device=cfg.experiment.device)
