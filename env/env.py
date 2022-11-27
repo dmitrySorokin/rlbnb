@@ -1,12 +1,20 @@
 from .obs import NodeBipariteWith24VariableFeatures
 from .reward import RetroBranching
+from .tracer import NegLogTreeSize
 import ecole
 
 
 class EcoleBranching(ecole.environment.Branching):
-    def __init__(self, instance_gen):
+    def __init__(self, instance_gen, reward_function: str = None):
         # init default rewards
-        reward_function = RetroBranching()
+        if reward_function is None or reward_function == "retro":
+            reward_function = RetroBranching()
+
+        elif reward_function == "tracer":
+            reward_function = NegLogTreeSize()
+
+        else:
+            raise NotImplementedError(reward_function)
 
         # reward_function['retro_binary_fathomed'] = RetroBranching()
 
