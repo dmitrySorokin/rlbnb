@@ -23,18 +23,19 @@ def evaluate(cfg: DictConfig):
     if cfg.agent.name == 'strong':
         agent = StrongAgent(env)
     elif cfg.agent.name == 'dqn':
-        agent = DQNAgent(device='cpu')
+        agent = DQNAgent(device=cfg.experiment.device)
         agent.eval()
         # checkpoint = get_most_recent_checkpoint_foldername('../../../outputs/02-37-47')
         print('eval checkpoint', cfg.agent.checkpoint)
         agent.load(f'../../../{cfg.agent.checkpoint}')
     elif cfg.agent.name == 'il':
-        agent = ImitationAgent(device='cpu')
+        agent = ImitationAgent(device=cfg.experiment.device)
         agent.eval()
         print('eval checkpoint', cfg.experiment.checkpoint)
         agent.load(f'{cfg.experiment.path_to_save}/checkpoint_{cfg.experiment.checkpoint}.pkl')
     elif cfg.agent.name == 'random':
-        agent = RandomAgent()
+        agent = DQNAgent(device=cfg.experiment.device)
+        assert cfg.agent.epsilon == 1
     else:
         raise ValueError(f'Unknown agent name {cfg.agent.name}')
 
@@ -45,7 +46,7 @@ def evaluate(cfg: DictConfig):
         if not done:
             obs = make_tripartite(env, obs, act_set)
         while not done:
-            action = agent.act(UnpackedTripartite(obs, 'cpu'), act_set)
+            action = agent.act(UnpackedTripartite(obs, cfg.experiment.device), act_set)
             obs, act_set, returns, done, info = env.step(action)
             if not done:
                 obs = make_tripartite(env, obs, act_set)
