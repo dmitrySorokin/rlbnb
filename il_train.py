@@ -28,7 +28,9 @@ def run(cfg: DictConfig):
     writer = SummaryWriter(cfg.experiment.path_to_log)
 
     # initialise imitation agent
-    agent = ImitationAgent(device=cfg.experiment.device)
+    agent = ImitationAgent(device=cfg.experiment.device,
+                           target=cfg.learner.imitation_target,
+                           loss_function=cfg.learner.loss_function)
     agent.train()
     print('Initialised imitation agent.')
     path_to_model_save = cfg.experiment.path_to_save
@@ -46,7 +48,7 @@ def run(cfg: DictConfig):
 
     # init training and validaton data loaders
     train_data = GraphDataset(train_files, observation_format='tripartite')
-    train_loader = torch_geometric.data.DataLoader(train_data, batch_size=128, shuffle=True, num_workers=0, pin_memory=True)
+    train_loader = torch_geometric.data.DataLoader(train_data, batch_size=32, shuffle=True, num_workers=0, pin_memory=True)
     valid_data = GraphDataset(valid_files, observation_format='tripartite')
     valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=256, shuffle=False, num_workers=0, pin_memory=True)
     print('Initialised training and validation data loaders.')

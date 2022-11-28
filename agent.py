@@ -484,14 +484,23 @@ class DQNAgent:
 
 
 class ImitationAgent:
-    def __init__(self, device, obs_type='tripartite'):
+    def __init__(self, device, obs_type='tripartite', target='expert_actions', loss_function='cross_entropy'):
         assert obs_type in ['bipartite', 'tripartite']
         if obs_type == 'bipartite':
             self.net = BipartiteGCN(device=device)
         else:
             self.net = TripartiteGCN(device=device)
         self.opt = torch.optim.Adam(self.net.parameters())
-        self.loss = MeanSquaredError()
+
+        assert target in ['expert_actions', 'expert_scores'], 'target not implemented'
+        self.target = target
+
+        assert loss_function in ['cross_entropy', 'mse'], 'loss function not implemented'
+        if loss_function == 'cross_entropy':
+            self.loss = CrossEntropy()
+        elif loss_function == 'mse':
+            self.loss = MeanSquaredError()
+
         self.device = device
 
     def act(self, obs, action_set):
@@ -504,7 +513,13 @@ class ImitationAgent:
     def update(self, obs):
         self.opt.zero_grad()
         pred = self.net(obs)
-        loss = self.loss(pred, obs.candidate_scores, obs.num_candidates)
+
+        if self.target == 'expert_actions':
+            target = obs.candidate_choices
+        elif self.target == 'expert_scores':
+            target = obs.candidate_scores
+
+        loss = self.loss(pred, target, obs.num_candidates)
         loss.backward()
         self.opt.step()
         return loss.detach().cpu().item()
@@ -513,7 +528,13 @@ class ImitationAgent:
         self.opt.zero_grad()
         with torch.no_grad():
             pred = self.net(obs)
-            loss = self.loss(pred, obs.candidate_scores, obs.num_candidates)
+
+            if self.target == 'expert_actions':
+                target = obs.candidate_choices
+            elif self.target == 'expert_scores':
+                target = obs.candidate_scores
+
+            loss = self.loss(pred, target, obs.num_candidates)
         return loss.detach().cpu().item()
 
     def save(self, path, epoch_id):
@@ -567,3 +588,14 @@ class MeanSquaredError(nn.Module):
             return torch.mean(loss)
         else:
             return F.mse_loss(_input, target, reduction=self.reduction)
+
+
+class CrossEntropy(nn.Module):
+    def __init__(self, reduction='mean'):
+        super().__init__()
+        self.reduction = reduction
+
+    def forward(self, _input, target, num_candidates=None):
+        if num_candidates is not None:
+            _input = pad_tensor(_input, num_candidates)
+        return F.cross_entropy(_input, target, reduction=self.reduction)
