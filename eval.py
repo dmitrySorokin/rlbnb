@@ -32,7 +32,7 @@ def evaluate(cfg: DictConfig):
         print('eval checkpoint', cfg.agent.checkpoint)
         agent.load(f'../../../{cfg.agent.checkpoint}')
     elif cfg.agent.name == 'il':
-        agent = ImitationAgent(device='cpu')
+        agent = ImitationAgent(device='cuda:0')
         agent.eval()
         print('eval checkpoint', cfg.experiment.checkpoint)
         agent.load(f'{cfg.experiment.path_to_save}/checkpoint_{cfg.experiment.checkpoint}.pkl')
@@ -46,9 +46,10 @@ def evaluate(cfg: DictConfig):
 
     for episode in trange(1000):
         obs, act_set, returns, done, info = env.eval_reset()
-        obs = make_tripartite(env, obs, act_set)
+        if not done:
+            obs = make_tripartite(env, obs, act_set)
         while not done:
-            action = agent.act(UnpackedTripartite(obs, 'cpu'), act_set)
+            action = agent.act(UnpackedTripartite(obs, 'cuda:0'), act_set)
             obs, act_set, returns, done, info = env.step(action)
             if not done:
                 obs = make_tripartite(env, obs, act_set)
