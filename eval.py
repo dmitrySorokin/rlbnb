@@ -10,7 +10,6 @@ from env import EcoleBranching
 import pandas as pd
 from tqdm import trange
 from obs import make_tripartite
-import os
 
 
 @hydra.main(config_path='configs', config_name='config.yaml')
