@@ -261,7 +261,7 @@ class DQNAgent:
         # TODO use torch_geometric.data.Batch
         for obs, act, ret in zip(obs_batch, act_batch, ret_batch):
             pred = self.net(obs)[act]
-            coef = np.clip(np.exp(np.abs(ret)), 0, 100)
+            coef = np.abs(ret)
             loss += ((pred - ret) ** 2) * coef
             norm_coef += coef
         loss /= len(obs_batch) * norm_coef

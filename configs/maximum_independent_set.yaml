@@ -1,0 +1,13 @@
+instances:
+  co_class: 'maximum_independent_set'
+  co_class_kwargs:
+    n_nodes: 25
+
+
+experiment:
+  seed: 0
+  device: 'cuda:0'
+  num_updates: 1000000
+  buffer_max_size: 10000
+  buffer_start_size: 1000
+  epsilon_decay: 0.99995
