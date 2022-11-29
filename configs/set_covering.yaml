@@ -1,8 +1,8 @@
 instances:
   co_class: 'set_covering'
   co_class_kwargs:
-    n_rows: 165
-    n_cols: 230
+    n_rows: 500
+    n_cols: 100
 
 
 experiment:
