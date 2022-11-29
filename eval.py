@@ -34,7 +34,7 @@ def evaluate(cfg: DictConfig):
         print('eval checkpoint', cfg.experiment.checkpoint)
         agent.load(f'{cfg.experiment.path_to_save}/checkpoint_{cfg.experiment.checkpoint}.pkl')
     elif cfg.agent.name == 'random':
-        agent = DQNAgent(device=cfg.experiment.device)
+        agent = RandomAgent(seed=cfg.experiment.seed)
         assert cfg.agent.epsilon == 1
     else:
         raise ValueError(f'Unknown agent name {cfg.agent.name}')
