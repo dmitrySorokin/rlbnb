@@ -566,6 +566,14 @@ class StrongAgent:
         pass
 
 
+class RandomAgent:
+    def __init__(self, seed):
+        np.random.seed(seed)
+
+    def act(self, obs, action_set):
+        return np.random.choice(action_set, 1)[0]
+
+
 class MeanSquaredError(nn.Module):
     def __init__(self, reduction='mean', norm_target=False):
         super().__init__()
