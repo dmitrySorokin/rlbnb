@@ -8,7 +8,7 @@ instances:
 experiment:
   seed: 0
   device: 'cuda:0'
-  num_updates: 1000000
-  buffer_max_size: 10000
-  buffer_start_size: 1000
-  epsilon_decay: 0.99995
+  num_updates: 10000
+  buffer_max_size: 1000
+  buffer_start_size: 100
+  epsilon_decay: 0.999
