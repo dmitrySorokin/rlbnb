@@ -93,7 +93,7 @@ class BipartiteNodeData(torch_geometric.data.Data):
         super().__init__()
 
         if observation is not None:
-            self.constraint_features = torch.FloatTensor(observation.row_features)
+            self.row_features = torch.FloatTensor(observation.row_features)
             self.variable_features = torch.FloatTensor(observation.variable_features)
             self.edge_index = torch.LongTensor(observation.edge_features.indices.astype(np.int64))
             self.edge_attr = torch.FloatTensor(observation.edge_features.values).unsqueeze(1)
@@ -113,7 +113,7 @@ class BipartiteNodeData(torch_geometric.data.Data):
         for those entries (edge index, candidates) for which this is not obvious.
         """
         if key == 'edge_index':
-            return torch.tensor([[self.constraint_features.size(0)], [self.variable_features.size(0)]])
+            return torch.tensor([[self.row_features.size(0)], [self.variable_features.size(0)]])
         elif key == 'candidates':
             return self.variable_features.size(0)
         else:
@@ -122,7 +122,7 @@ class BipartiteNodeData(torch_geometric.data.Data):
 
 class UnpackedTripartite:
     def __init__(self, observation, device):
-        self.constraint_features = torch.FloatTensor(observation.row_features).to(device)
+        self.row_features = torch.FloatTensor(observation.row_features).to(device)
         self.variable_features = torch.FloatTensor(observation.variable_features).to(device)
         self.cut_features = torch.FloatTensor(observation.cut_features).to(device)
         self.edge_index = torch.LongTensor(observation.edge_features.indices.astype(np.int64)).to(device)
@@ -143,7 +143,7 @@ class TripartiteNodeData(torch_geometric.data.Data):
         super().__init__()
 
         if observation is not None:
-            self.constraint_features = torch.FloatTensor(observation.row_features)
+            self.row_features = torch.FloatTensor(observation.row_features)
             self.variable_features = torch.FloatTensor(observation.variable_features)
             self.cut_features = torch.FloatTensor(observation.cut_features)
             self.edge_index = torch.LongTensor(observation.edge_features.indices.astype(np.int64))
@@ -169,14 +169,14 @@ class TripartiteNodeData(torch_geometric.data.Data):
         """
         #print(key)
         if key == 'edge_index':
-        #    print(self.constraint_features.size(0), self.variable_features.size(0))
-            return torch.tensor([[self.constraint_features.size(0)], [self.variable_features.size(0)]])
+        #    print(self.row_features.size(0), self.variable_features.size(0))
+            return torch.tensor([[self.row_features.size(0)], [self.variable_features.size(0)]])
         if key == 'cut_col_edge_index':
         #    #print(self.cut_features.size(0), self.variable_features.size(0))
             return torch.tensor([[self.cut_features.size(0)], [self.variable_features.size(0)]])
         if key == 'cut_row_edge_index':
-            #print(self.cut_features.size(0), self.constraint_features.size(0))
-            return torch.tensor([[self.cut_features.size(0)], [self.constraint_features.size(0)]])
+            #print(self.cut_features.size(0), self.row_features.size(0))
+            return torch.tensor([[self.cut_features.size(0)], [self.row_features.size(0)]])
         if key == 'candidates':
             #print(self.variable_features.size(0))
             return self.variable_features.size(0)

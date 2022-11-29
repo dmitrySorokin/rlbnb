@@ -75,7 +75,7 @@ class BipartiteGCN(torch.nn.Module):
                  emb_size=64,
                  cons_nfeats=5,
                  edge_nfeats=1,
-                 var_nfeats=43,
+                 var_nfeats=19,
                  num_heads=1,
                  head_depth=1,
                  linear_weight_init=None,
@@ -201,21 +201,10 @@ class BipartiteGCN(torch.nn.Module):
                 h.apply(init_params)
 
     def forward(self, obs):
-        constraint_features = torch.from_numpy(
-            obs.row_features.astype(np.float32)
-        ).to(self.device)
-
-        edge_indices = torch.LongTensor(
-            obs.edge_features.indices.astype(np.int16)
-        ).to(self.device)
-
-        edge_features = torch.from_numpy(
-            obs.edge_features.values.astype(np.float32)
-        ).view(-1, 1).to(self.device)
-
-        variable_features = torch.from_numpy(
-            obs.variable_features.astype(np.float32)
-        ).to(self.device)
+        constraint_features = obs.row_features
+        edge_indices = obs.edge_index
+        edge_features = obs.edge_attr
+        variable_features = obs.variable_features
 
         # print(constraint_features.shape, edge_indices.shape, edge_features.shape, variable_features.shape)
         reversed_edge_indices = torch.stack([edge_indices[1], edge_indices[0]], dim=0)
@@ -237,7 +226,7 @@ class BipartiteGCN(torch.nn.Module):
         head_output = [self.heads_module[head](variable_features).squeeze(-1) for head in range(self.num_heads)]
         head_output = torch.stack(head_output, dim=0).mean(dim=0)
 
-        return head_output
+        return head_output[obs.candidates]
 
 
 class TripartiteGCN(torch.nn.Module):
@@ -389,7 +378,7 @@ class TripartiteGCN(torch.nn.Module):
                 h.apply(init_params)
 
     def forward(self, obs):
-        constraint_features = obs.constraint_features
+        constraint_features = obs.row_features
         variable_features = obs.variable_features
         cut_features = obs.cut_features
 
@@ -484,11 +473,11 @@ class DQNAgent:
 
 
 class ImitationAgent:
-    def __init__(self, device, obs_type='tripartite', target='expert_actions', loss_function='cross_entropy'):
-        assert obs_type in ['bipartite', 'tripartite']
-        if obs_type == 'bipartite':
+    def __init__(self, device, observation_format='tripartite', target='expert_actions', loss_function='cross_entropy'):
+        assert observation_format in ['bipartite', 'tripartite']
+        if observation_format == 'bipartite':
             self.net = BipartiteGCN(device=device)
-        else:
+        elif observation_format == 'tripartite':
             self.net = TripartiteGCN(device=device)
         self.opt = torch.optim.Adam(self.net.parameters())
 
@@ -505,7 +494,7 @@ class ImitationAgent:
 
     def act(self, obs, action_set):
         with torch.no_grad():
-            preds = self.net(obs)
+            preds = self.net(obs)[action_set]
         action_idx = torch.argmax(preds)
         action = action_set[action_idx.item()]
         return action

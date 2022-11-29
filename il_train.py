@@ -29,6 +29,7 @@ def run(cfg: DictConfig):
 
     # initialise imitation agent
     agent = ImitationAgent(device=cfg.experiment.device,
+                           observation_format=cfg.learner.observation_format,
                            target=cfg.learner.imitation_target,
                            loss_function=cfg.learner.loss_function)
     agent.train()
@@ -47,10 +48,10 @@ def run(cfg: DictConfig):
     valid_files = sample_files[int(0.83*len(sample_files)):]
 
     # init training and validaton data loaders
-    train_data = GraphDataset(train_files, observation_format='tripartite')
-    train_loader = torch_geometric.data.DataLoader(train_data, batch_size=32, shuffle=True, num_workers=0, pin_memory=True)
-    valid_data = GraphDataset(valid_files, observation_format='tripartite')
-    valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=256, shuffle=False, num_workers=0, pin_memory=True)
+    train_data = GraphDataset(train_files, observation_format=cfg.learner.observation_format)
+    train_loader = torch_geometric.data.DataLoader(train_data, batch_size=64, shuffle=True, num_workers=8, pin_memory=True)
+    valid_data = GraphDataset(valid_files, observation_format=cfg.learner.observation_format)
+    valid_loader = torch_geometric.data.DataLoader(valid_data, batch_size=256, shuffle=False, num_workers=8, pin_memory=True)
     print('Initialised training and validation data loaders.')
 
     for epoch in range(cfg.experiment.num_epochs):
