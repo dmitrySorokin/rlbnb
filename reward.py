@@ -44,6 +44,9 @@ class RetroBranching:
                         print(f'Removing node {node} since was never visited by brancher.')
                     self.normalised_lp_gain.tree.tree.graph['visited_node_ids'].remove(node)
 
+        if len(self.normalised_lp_gain.tree.tree) == 0:
+            return {0: 0}
+
         postorder(
             self.normalised_lp_gain.tree.tree,
             list(self.normalised_lp_gain.tree.tree.graph['root_node'].keys())[0]
