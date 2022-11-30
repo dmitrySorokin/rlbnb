@@ -50,7 +50,7 @@ def rollout(env, agent, replay_buffer, epsilon, max_tree_size=100):
     for obs, act, ret in zip(traj_obs, traj_act, traj_ret):
         replay_buffer.add_transition(obs, act, ret)
 
-    return len(returns), info
+    return len(ids), info
 
 
 @hydra.main(config_path='configs', config_name='retro.yaml')
@@ -68,9 +68,9 @@ def main(cfg: DictConfig):
         start_size=cfg.experiment.buffer_start_size
     )
 
-    epsilon = 1
+    epsilon_start = 1
     epsilon_min = 0.01
-    epsilon_decay = cfg.experiment.epsilon_decay
+    epsilon = epsilon_start
 
     pbar = tqdm(total=replay_buffer.start_size, desc='init')
     while not replay_buffer.is_ready():
@@ -94,7 +94,8 @@ def main(cfg: DictConfig):
             writer.add_scalar('update/loss', loss, update)
             writer.add_scalar('update/epsilon', epsilon, update)
             update += 1
-            epsilon = max(epsilon_min, epsilon * epsilon_decay)
+            # epsilon = max(epsilon_min, epsilon * epsilon_decay)
+            epsilon = max(epsilon_start * (1.0 - update / pbar.total), epsilon_min)
             print(f'loss = {loss:.2f}, epsilon = {epsilon:.2f}')
         agent.save(os.getcwd(), update)
         pbar.update(num_obs)
