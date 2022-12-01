@@ -38,7 +38,7 @@ def evaluate(cfg: DictConfig):
     df = pd.DataFrame(columns=['lp_iterations', 'num_nodes', 'solving_time'])
 
     for episode in trange(1000):
-        obs, act_set, returns, done, info = env.eval_reset()
+        obs, act_set, returns, done, info = env.reset()
         while not done:
             action = agent.act(obs, act_set, epsilon=cfg.agent.epsilon)
             obs, act_set, returns, done, info = env.step(action)

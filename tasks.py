@@ -1,10 +1,30 @@
 import numpy as np
-
+import ecole
 from ecole.scip import Model
 from craballoc.problem import FixedScheduleCRopt
 from craballoc.bnb.fixsched import setup
 from pyscipopt import quicksum
 import pyscipopt as scip
+from omegaconf import DictConfig
+
+
+def make_instances(cfg: DictConfig):
+    if cfg.instances.co_class == 'set_covering':
+        instances = ecole.instance.SetCoverGenerator(**cfg.instances.co_class_kwargs)
+    elif cfg.instances.co_class == 'combinatorial_auction':
+        instances = ecole.instance.CombinatorialAuctionGenerator(**cfg.instances.co_class_kwargs)
+    elif cfg.instances.co_class == 'capacitated_facility_location':
+        instances = ecole.instance.CapacitatedFacilityLocationGenerator(**cfg.instances.co_class_kwargs)
+    elif cfg.instances.co_class == 'maximum_independent_set':
+        instances = ecole.instance.IndependentSetGenerator(**cfg.instances.co_class_kwargs)
+    elif cfg.instances.co_class == 'crabs':
+        instances = generate_craballoc(**cfg.instances.co_class_kwargs)
+    elif cfg.instances.co_class == 'tsp':
+        instances = generate_tsp(**cfg.instances.co_class_kwargs)
+    else:
+        raise Exception(f'Unrecognised co_class {cfg.instances.co_class}')
+
+    return instances
 
 
 def generate_craballoc(

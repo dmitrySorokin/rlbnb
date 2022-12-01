@@ -1,34 +1,13 @@
-import ecole
-
 import hydra
 import numpy as np
 from omegaconf import DictConfig, OmegaConf
 from env import EcoleBranching
-from tasks import generate_tsp, generate_craballoc
+from tasks import make_instances
 from agent import DQNAgent, StrongAgent
 from replay_buffer import ReplayBuffer
 from tqdm import tqdm
 import os
 from tensorboardX import SummaryWriter
-
-
-def make_instances(cfg: DictConfig):
-    if cfg.instances.co_class == 'set_covering':
-        instances = ecole.instance.SetCoverGenerator(**cfg.instances.co_class_kwargs)
-    elif cfg.instances.co_class == 'combinatorial_auction':
-        instances = ecole.instance.CombinatorialAuctionGenerator(**cfg.instances.co_class_kwargs)
-    elif cfg.instances.co_class == 'capacitated_facility_location':
-        instances = ecole.instance.CapacitatedFacilityLocationGenerator(**cfg.instances.co_class_kwargs)
-    elif cfg.instances.co_class == 'maximum_independent_set':
-        instances = ecole.instance.IndependentSetGenerator(**cfg.instances.co_class_kwargs)
-    elif cfg.instances.co_class == 'crabs':
-        instances = generate_craballoc(**cfg.instances.co_class_kwargs)
-    elif cfg.instances.co_class == 'tsp':
-        instances = generate_tsp(**cfg.instances.co_class_kwargs)
-    else:
-        raise Exception(f'Unrecognised co_class {cfg.instances.co_class}')
-
-    return instances
 
 
 def rollout(env, agent, replay_buffer, epsilon, max_tree_size=100):
