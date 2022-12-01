@@ -1,8 +1,8 @@
 instances:
-  co_class: 'set_covering'
+  co_class: 'capacitated_facility_location'
   co_class_kwargs:
-    n_rows: 500
-    n_cols: 1000
+    n_customers: 100
+    n_facilities: 100
 
 
 experiment:

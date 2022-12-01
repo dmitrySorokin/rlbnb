@@ -39,7 +39,7 @@ def evaluate(cfg: DictConfig):
     out_dir = f'../../../results/{gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)}'
     os.makedirs(out_dir, exist_ok=True)
 
-    for episode in trange(1000):
+    for episode in trange(100):
         obs, act_set, returns, done, info = env.reset()
         while not done:
             action = agent.act(obs, act_set, epsilon=cfg.agent.epsilon)

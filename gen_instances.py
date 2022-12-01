@@ -27,7 +27,7 @@ def run(cfg: DictConfig):
     os.makedirs(out_dir, exist_ok=True)
 
     # data generation
-    for i in trange(1000):
+    for i in trange(100):
         obs, act, rew, done, info = env.reset()
         assert not done
         instance = info['instance']
