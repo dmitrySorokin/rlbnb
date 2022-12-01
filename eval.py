@@ -1,8 +1,6 @@
 import ecole
 import glob
-
 import numpy as np
-
 from tasks import gen_co_name
 from utils import get_most_recent_checkpoint_foldername
 import hydra
@@ -11,6 +9,7 @@ from agent import DQNAgent, StrongAgent
 from env import EcoleBranching
 import pandas as pd
 from tqdm import trange
+import os
 
 
 @hydra.main(config_path='configs', config_name='config.yaml')
@@ -37,13 +36,16 @@ def evaluate(cfg: DictConfig):
 
     df = pd.DataFrame(columns=['lp_iterations', 'num_nodes', 'solving_time'])
 
+    out_dir = f'../../../results/{gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)}'
+    os.makedirs(out_dir, exist_ok=True)
+
     for episode in trange(1000):
         obs, act_set, returns, done, info = env.reset()
         while not done:
             action = agent.act(obs, act_set, epsilon=cfg.agent.epsilon)
             obs, act_set, returns, done, info = env.step(action)
         df = df.append(info, ignore_index=True)
-        df.to_csv(f'../../../{cfg.output}')
+        df.to_csv(f'{out_dir}/{cfg.agent.name}.csv')
         print(np.median(df['num_nodes']), np.std(df['num_nodes']))
 
 
