@@ -20,3 +20,8 @@ checkpoints will be saved in
 ## Eval agent
 * download and unpack task instances from [google drive](https://drive.google.com/file/d/1TeeTpnfI4XbqeTJKXelzNZiMbLO3c71h/view?usp=share_link)
 * ```python3 eval.py --config-name {cfg_from_configs}.yaml```
+* results will be saved in ```results/{task_name}/{agent_name}.csv```
+
+
+## Plot results
+```python3 plot.py```
