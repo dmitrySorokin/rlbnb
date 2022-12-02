@@ -4,7 +4,7 @@ import glob
 import numpy as np
 
 from tasks import gen_co_name
-from utils import get_most_recent_checkpoint_foldername, UnpackedTripartite
+from utils import get_most_recent_checkpoint_foldername, UnpackedTripartite, UnpackedBipartite
 import hydra
 from omegaconf import DictConfig
 from agent import DQNAgent, ImitationAgent, StrongAgent, RandomAgent
@@ -22,6 +22,10 @@ def evaluate(cfg: DictConfig):
 
     env = EcoleBranching(instances)
     env.seed(123)
+    try:
+        observation_format = cfg.learner.observation_format
+    except:
+        observation_format = 'bipartite'
 
     if cfg.agent.name == 'strong':
         agent = StrongAgent(env)
@@ -32,7 +36,8 @@ def evaluate(cfg: DictConfig):
         print('eval checkpoint', cfg.agent.checkpoint)
         agent.load(f'../../../{cfg.agent.checkpoint}')
     elif cfg.agent.name == 'il':
-        agent = ImitationAgent(device=cfg.experiment.device)
+        agent = ImitationAgent(device=cfg.experiment.device,
+                               observation_format=observation_format)
         agent.eval()
         print('eval checkpoint', cfg.experiment.checkpoint)
         agent.load(f'{cfg.experiment.path_to_save}/checkpoint_{cfg.experiment.checkpoint}.pkl')
@@ -49,7 +54,13 @@ def evaluate(cfg: DictConfig):
         if not done:
             obs = make_tripartite(env, obs, act_set)
         while not done:
-            action = agent.act(UnpackedTripartite(obs, cfg.experiment.device), act_set)
+
+            if observation_format == 'bipartite':
+                obs = UnpackedBipartite(obs, cfg.experiment.device)
+            elif observation_format == 'tripartite':
+                obs = UnpackedTripartite(obs, cfg.experiment.device)
+
+            action = agent.act(obs, act_set)
             obs, act_set, returns, done, info = env.step(action)
             if not done:
                 obs = make_tripartite(env, obs, act_set)
