@@ -25,4 +25,4 @@ checkpoints will be saved in
 
 
 ## Plot results
-```python3 plot.py```
+```python3 plot.py results/{task_name}/```

@@ -2,6 +2,8 @@ import numpy as np
 from numpy import ndarray
 import pandas as pd
 from matplotlib import pyplot as plt
+from argparse import ArgumentParser
+import os
 
 
 def pp_curve(*, x: ndarray, y: ndarray, num: int = None) -> tuple[ndarray, ndarray]:
@@ -35,26 +37,26 @@ def pp_curve(*, x: ndarray, y: ndarray, num: int = None) -> tuple[ndarray, ndarr
     return p, q
 
 
-def filter(arr):
+def filter_presolved(arr):
     return arr[arr > 1]
 
 
 if __name__ == '__main__':
-    fig, ax = plt.subplots(1, 1)
-    key = 'num_nodes'
-    strong = filter(pd.read_csv('results/strong_branching.csv')[key].to_numpy())
+    parser = ArgumentParser()
+    parser.add_argument('path')
+    parser.add_argument('--key', default='num_nodes', choices=['num_nodes', 'lp_iterations', 'solving_time'])
+    args = parser.parse_args()
 
-    for fname in [
-        'random.csv',
-        'dqn.csv',
-        'dqn_v2.csv',
-        'dqn_v2_start.csv',
-        'retro/retro.csv',
-        'retro/il.csv',
-        'retro/strong_branching.csv',
-        'retro/random.csv'
-    ]:
-        data = filter(pd.read_csv('results/' + fname)[key].to_numpy())
+    fig, ax = plt.subplots(1, 1)
+    key = args.key
+    path = args.path
+    strong = filter_presolved(pd.read_csv(f'{path}/strong.csv')[key].to_numpy())
+
+    for fname in os.listdir(path):
+        if not fname.endswith('.csv'):
+            continue
+
+        data = filter_presolved(pd.read_csv(f'{path}/' + fname)[key].to_numpy())
         print(f'{fname}: median = {np.median(data)}, mean = {np.mean(data)}, std = {np.std(data)}')
 
         # plt.hist(data, bins=100, log=True)
@@ -63,7 +65,7 @@ if __name__ == '__main__':
         # plt.close()
 
         u, p = pp_curve(x=strong, y=data)
-        ax.plot(u, p, label=fname)
+        ax.plot(u, p, label=fname[:-4])
 
     ax.plot((0, 1), (0, 1), c="k", zorder=10, alpha=0.25)
     ax.set_xlim(-0.025, 1.025)
@@ -76,5 +78,5 @@ if __name__ == '__main__':
     ax.set_aspect(1.)
 
     plt.legend()
-    plt.savefig('pp_nodes.pdf')
+    plt.savefig(f'pp_{key}.pdf')
     plt.show()
