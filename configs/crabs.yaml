@@ -19,3 +19,12 @@ experiment:
   buffer_max_size: 10000
   buffer_start_size: 1000
   epsilon_decay: 0.99995
+
+
+agent:
+  name: 'dqn'
+  epsilon: 0.1
+  # checkpoint: 'outputs/2022-11-21/13-40-07/checkpoint_548.pkl' -> median = 10.0, std = 175.7791997037387
+  # checkpoint: 'outputs/2022-11-21/13-40-07/checkpoint_32017.pkl' -> median = 11.0, std = 94.2274789463656
+  # checkpoint: 'outputs/crabs/checkpoint_120081.pkl' -> median = 12.0, std = 302.6808444460382
+  checkpoint: 'outputs/06-40-40/checkpoint_58623.pkl'
