@@ -57,7 +57,10 @@ if __name__ == '__main__':
             continue
 
         data = filter_presolved(pd.read_csv(f'{path}/' + fname)[key].to_numpy())
-        print(f'{fname}: median = {np.median(data)}, mean = {np.mean(data)}, std = {np.std(data)}')
+        print(
+            f'{fname}: tot = {len(data)}, median = {np.median(data):.2f}, '
+            f'mean = {np.mean(data):.2f}, std = {np.std(data):.2f}'
+        )
 
         # plt.hist(data, bins=100, log=True)
         # plt.title(fname)
