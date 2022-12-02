@@ -56,7 +56,7 @@ def evaluate(cfg: DictConfig):
         while not done:
 
             if observation_format == 'bipartite':
-                obs = UnpackedBipartite(obs, cfg.experiment.device)
+                obs = UnpackedBipartite(obs, act_set, cfg.experiment.device)
             elif observation_format == 'tripartite':
                 obs = UnpackedTripartite(obs, cfg.experiment.device)
 
