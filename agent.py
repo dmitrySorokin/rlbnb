@@ -494,7 +494,7 @@ class ImitationAgent:
 
     def act(self, obs, action_set):
         with torch.no_grad():
-            preds = self.net(obs)[action_set]
+            preds = self.net(obs)
         action_idx = torch.argmax(preds)
         action = action_set[action_idx.item()]
         return action
