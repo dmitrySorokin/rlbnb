@@ -120,6 +120,14 @@ class BipartiteNodeData(torch_geometric.data.Data):
             return super().__inc__(key, value)
 
 
+class UnpackedBipartite:
+    def __init__(self, observation, device):
+        self.row_features = torch.FloatTensor(observation.row_features).to(device)
+        self.variable_features = torch.FloatTensor(observation.variable_features).to(device)
+        self.edge_index = torch.LongTensor(observation.edge_features.indices.astype(np.int64)).to(device)
+        self.edge_attr = torch.FloatTensor(observation.edge_features.values).unsqueeze(1).to(device)
+
+
 class UnpackedTripartite:
     def __init__(self, observation, device):
         self.row_features = torch.FloatTensor(observation.row_features).to(device)
