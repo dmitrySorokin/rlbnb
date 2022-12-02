@@ -126,7 +126,7 @@ class UnpackedBipartite:
         self.variable_features = torch.FloatTensor(observation.variable_features).to(device)
         self.edge_index = torch.LongTensor(observation.edge_features.indices.astype(np.int64)).to(device)
         self.edge_attr = torch.FloatTensor(observation.edge_features.values).unsqueeze(1).to(device)
-        self.candidates = torch.LongTensor(candidates)
+        self.candidates = torch.LongTensor(candidates.astype('int64'))
 
 
 class UnpackedTripartite:
