@@ -3,8 +3,7 @@ import numpy as np
 from omegaconf import DictConfig, OmegaConf
 from env import EcoleBranching
 from tasks import make_instances
-from agent import DQNAgent, StrongAgent
-from replay_buffer import ReplayBuffer
+from agent import DQNAgent, StrongAgent, ReplayBuffer
 from tqdm import tqdm
 import os
 from tensorboardX import SummaryWriter

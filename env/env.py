@@ -1,5 +1,5 @@
-from obs import NodeBipariteWith24VariableFeatures
-from reward import RetroBranching
+from .obs import NodeBipariteWith24VariableFeatures
+from .reward import RetroBranching
 import ecole
 
 

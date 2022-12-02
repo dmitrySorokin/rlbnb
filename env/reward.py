@@ -1,5 +1,5 @@
 import numpy as np
-from normalised_lp_gain import NormalisedLPGain
+from .normalised_lp_gain import NormalisedLPGain
 
 
 def postorder(graph, root):

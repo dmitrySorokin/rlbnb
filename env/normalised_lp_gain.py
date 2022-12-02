@@ -1,4 +1,4 @@
-from utils import SearchTree
+from .utils import SearchTree
 import copy
 
 
