@@ -15,4 +15,4 @@ experiment:
 agent:
   name: 'dqn'
   epsilon: 0.1
-  checkpoint: 'unk'
+  checkpoint: 'outputs/2022-12-02/15-22-32/checkpoint_100093.pkl'
