@@ -81,7 +81,8 @@ class BipartiteGCN(torch.nn.Module):
                  linear_weight_init=None,
                  linear_bias_init=None,
                  layernorm_weight_init=None,
-                 layernorm_bias_init=None):
+                 layernorm_bias_init=None,
+                 encode_possible_actions=True):
         super().__init__()
 
         self.device = device
@@ -131,6 +132,10 @@ class BipartiteGCN(torch.nn.Module):
             head.append(torch.nn.Linear(emb_size, 1, bias=True))
             heads.append(torch.nn.Sequential(*head))
         self.heads_module = torch.nn.ModuleList(heads)
+
+        self.encode_possible_actions = encode_possible_actions
+        if encode_possible_actions:
+            self.pos_act_emb = nn.Embedding(2, emb_size)
 
         self.init_model_parameters()
         self.to(device)
@@ -213,6 +218,12 @@ class BipartiteGCN(torch.nn.Module):
         constraint_features = self.cons_embedding(constraint_features)
         assert variable_features.shape[1] == self.var_nfeats
         variable_features = self.var_embedding(variable_features)
+
+        if self.encode_possible_actions:
+            pos = torch.zeros_like(variable_features[:, 0])
+            pos[obs.candidates] = 1
+            pos_encodes = self.pos_act_emb(pos.long())
+            variable_features += pos_encodes
 
         # Two half convolutions (message passing round)
         constraint_features = self.conv_v_to_c(
