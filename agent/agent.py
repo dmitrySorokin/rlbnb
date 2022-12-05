@@ -1,4 +1,5 @@
 import torch
+from torch import nn
 import torch_geometric
 import numpy as np
 from torch_geometric.data import Batch
@@ -14,28 +15,28 @@ class BipartiteGraphConvolution(torch_geometric.nn.MessagePassing):
     def __init__(self, aggregator='mean', emb_size=64):
         super().__init__(aggregator)
 
-        self.feature_module_left = torch.nn.Sequential(
-            torch.nn.Linear(emb_size, emb_size)
+        self.feature_module_left = nn.Sequential(
+            nn.Linear(emb_size, emb_size)
         )
-        self.feature_module_right = torch.nn.Sequential(
-            torch.nn.Linear(emb_size, emb_size, bias=False)
+        self.feature_module_right = nn.Sequential(
+            nn.Linear(emb_size, emb_size, bias=False)
         )
-        self.feature_module_final = torch.nn.Sequential(
-            torch.nn.LayerNorm(emb_size),
-            torch.nn.LeakyReLU(),
-            torch.nn.Linear(emb_size, emb_size)
+        self.feature_module_final = nn.Sequential(
+            nn.LayerNorm(emb_size),
+            nn.LeakyReLU(),
+            nn.Linear(emb_size, emb_size)
         )
-        self.post_conv_module = torch.nn.Sequential(
-            torch.nn.LayerNorm(emb_size)
+        self.post_conv_module = nn.Sequential(
+            nn.LayerNorm(emb_size)
         )
 
         # output_layers
-        self.output_module = torch.nn.Sequential(
-            torch.nn.Linear(2 * emb_size, emb_size),
-            # torch.nn.LayerNorm(emb_size, emb_size), # added
-            torch.nn.LeakyReLU(),
-            torch.nn.Linear(emb_size, emb_size),
-            # torch.nn.LayerNorm(emb_size, emb_size), # added
+        self.output_module = nn.Sequential(
+            nn.Linear(2 * emb_size, emb_size),
+            # nn.LayerNorm(emb_size, emb_size), # added
+            nn.LeakyReLU(),
+            nn.Linear(emb_size, emb_size),
+            # nn.LayerNorm(emb_size, emb_size), # added
         )
 
     def forward(self, left_features, edge_indices, edge_features, right_features):
@@ -66,19 +67,13 @@ class BipartiteGraphConvolution(torch_geometric.nn.MessagePassing):
         return output
 
 
-class BipartiteGCN(torch.nn.Module):
+class BipartiteGCN(nn.Module):
     def __init__(self,
                  device,
                  emb_size=64,
                  cons_nfeats=5,
                  edge_nfeats=1,
-                 var_nfeats=43,
-                 num_heads=1,
-                 head_depth=1,
-                 linear_weight_init=None,
-                 linear_bias_init=None,
-                 layernorm_weight_init=None,
-                 layernorm_bias_init=None):
+                 var_nfeats=43):
         super().__init__()
 
         self.device = device
@@ -86,116 +81,54 @@ class BipartiteGCN(torch.nn.Module):
         self.cons_nfeats = cons_nfeats
         self.edge_nfeats = edge_nfeats
         self.var_nfeats = var_nfeats
-        self.activation = None
-        self.num_heads = num_heads
-        self.head_depth = head_depth
-        self.linear_weight_init = linear_weight_init
-        self.linear_bias_init = linear_bias_init
-        self.layernorm_weight_init = layernorm_weight_init
-        self.layernorm_bias_init = layernorm_bias_init
 
         # CONSTRAINT EMBEDDING
-        self.cons_embedding = torch.nn.Sequential(
-            torch.nn.LayerNorm(cons_nfeats),
-            torch.nn.Linear(cons_nfeats, emb_size),
-            # torch.nn.LayerNorm(emb_size, emb_size), # added
-            torch.nn.LeakyReLU(),
-            torch.nn.Linear(emb_size, emb_size),
-            # torch.nn.LayerNorm(emb_size, emb_size), # added
-            torch.nn.LeakyReLU(),
+        self.cons_embedding = nn.Sequential(
+            nn.LayerNorm(cons_nfeats),
+            nn.Linear(cons_nfeats, emb_size),
+            # nn.LayerNorm(emb_size, emb_size), # added
+            nn.LeakyReLU(),
+            nn.Linear(emb_size, emb_size),
+            # nn.LayerNorm(emb_size, emb_size), # added
+            nn.LeakyReLU(),
         )
 
         # VARIABLE EMBEDDING
-        self.var_embedding = torch.nn.Sequential(
-            torch.nn.LayerNorm(var_nfeats),
-            torch.nn.Linear(var_nfeats, emb_size),
-            # torch.nn.LayerNorm(emb_size, emb_size), # added
-            torch.nn.LeakyReLU(),
-            torch.nn.Linear(emb_size, emb_size),
-            # torch.nn.LayerNorm(emb_size, emb_size), # added
-            torch.nn.LeakyReLU(),
+        self.var_embedding = nn.Sequential(
+            nn.LayerNorm(var_nfeats),
+            nn.Linear(var_nfeats, emb_size),
+            # nn.LayerNorm(emb_size, emb_size), # added
+            nn.LeakyReLU(),
+            nn.Linear(emb_size, emb_size),
+            # nn.LayerNorm(emb_size, emb_size), # added
+            nn.LeakyReLU(),
         )
 
         self.conv_v_to_c = BipartiteGraphConvolution(emb_size=emb_size, aggregator='mean')
         self.conv_c_to_v = BipartiteGraphConvolution(emb_size=emb_size, aggregator='mean')
 
-        heads = []
-        for _ in range(self.num_heads):
-            head = []
-            for _ in range(self.head_depth):
-                head.append(torch.nn.Linear(emb_size, emb_size))
-                head.append(torch.nn.LeakyReLU())
-            head.append(torch.nn.Linear(emb_size, 1, bias=True))
-            heads.append(torch.nn.Sequential(*head))
-        self.heads_module = torch.nn.ModuleList(heads)
+        self.mean_head = nn.Sequential(
+            nn.Linear(emb_size, emb_size),
+            nn.LeakyReLU(),
+            nn.Linear(emb_size, 1)
+        )
+
+        self.logstd_head = nn.Sequential(
+            nn.Linear(emb_size, emb_size),
+            nn.LeakyReLU(),
+            nn.Linear(emb_size, 1)
+        )
 
         self.init_model_parameters()
         self.to(device)
 
-
-    def init_model_parameters(self, init_gnn_params=True, init_heads_params=True):
-
+    def init_model_parameters(self):
         def init_params(m):
-            if isinstance(m, torch.nn.Linear):
-                # weights
-                if self.linear_weight_init is None:
-                    pass
-                elif self.linear_weight_init == 'uniform':
-                    torch.nn.init.uniform_(m.weight, a=0.0, b=1.0)
-                elif self.linear_weight_init == 'normal':
-                    torch.nn.init.normal_(m.weight, mean=0.0, std=0.01)
-                elif self.linear_weight_init == 'xavier_uniform':
-                    torch.nn.init.xavier_uniform_(m.weight, gain=torch.nn.init.calculate_gain(self.activation))
-                elif self.linear_weight_init == 'xavier_normal':
-                    torch.nn.init.xavier_normal_(m.weight, gain=torch.nn.init.calculate_gain(self.activation))
-                elif self.linear_weight_init == 'kaiming_uniform':
-                    torch.nn.init.kaiming_uniform_(m.weight, nonlinearity=self.activation)
-                elif self.linear_weight_init == 'kaiming_normal':
-                    torch.nn.init.kaiming_normal_(m.weight, nonlinearity=self.activation)
-                    # torch.nn.init.kaiming_normal_(m.weight, nonlinearity='relu')
-                else:
-                    raise Exception(f'Unrecognised linear_weight_init {self.linear_weight_init}')
-
-                # biases
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_normal_(m.weight)
                 if m.bias is not None:
-                    if self.linear_bias_init is None:
-                        pass
-                    elif self.linear_bias_init == 'zeros':
-                        torch.nn.init.zeros_(m.bias)
-                    elif self.linear_bias_init == 'uniform':
-                        torch.nn.init.uniform_(m.bias)
-                    elif self.linear_bias_init == 'normal':
-                        torch.nn.init.normal_(m.bias)
-                    else:
-                        raise Exception(f'Unrecognised bias initialisation {self.linear_bias_init}')
-
-            elif isinstance(m, torch.nn.LayerNorm):
-                # weights
-                if self.layernorm_weight_init is None:
-                    pass
-                elif self.layernorm_weight_init == 'normal':
-                    torch.nn.init.normal_(m.weight, mean=0.0, std=0.01)
-                else:
-                    raise Exception(f'Unrecognised layernorm_weight_init {self.layernorm_weight_init}')
-
-                # biases
-                if self.layernorm_bias_init is None:
-                    pass
-                elif self.layernorm_bias_init == 'zeros':
-                    torch.nn.init.zeros_(m.bias)
-                elif self.layernorm_bias_init == 'normal':
-                    torch.nn.init.normal_(m.bias)
-                else:
-                    raise Exception(f'Unrecognised layernorm_bias_init {self.layernorm_bias_init}')
-
-        if init_gnn_params:
-            # init base GNN params
-            self.apply(init_params)
-
-        if init_heads_params:
-            # init head output params
-            for h in self.heads_module:
-                h.apply(init_params)
+                    nn.init.zeros_(m.bias.data)
+        self.apply(init_params)
 
     def forward(self, obs):
         constraint_features = torch.from_numpy(
@@ -230,11 +163,9 @@ class BipartiteGCN(torch.nn.Module):
             constraint_features, edge_indices, edge_features, variable_features
         )
 
-        # get output for each head
-        head_output = [self.heads_module[head](variable_features).squeeze(-1) for head in range(self.num_heads)]
-        head_output = torch.stack(head_output, dim=0).mean(dim=0)
-
-        return head_output
+        mu = self.mean_head(variable_features)
+        std = self.logstd_head(variable_features).exp()
+        return torch.distributions.Normal(mu, std)
 
 
 class DQNAgent:
@@ -242,16 +173,17 @@ class DQNAgent:
         self.net = BipartiteGCN(device=device, var_nfeats=24)
         self.opt = torch.optim.Adam(self.net.parameters())
 
-    def act(self, obs, action_set, epsilon):
+    def act(self, obs, action_set, deterministic=False):
         with torch.no_grad():
-            preds = self.net(obs)[action_set.astype('int32')]
+            distr = self.net(obs)
 
-        # single observation
-        if np.random.rand() < epsilon:
-            action = np.random.choice(action_set)
+        if deterministic:
+            preds = distr.mean[action_set.astype('int32')]
         else:
-            action_idx = torch.argmax(preds)
-            action = action_set[action_idx.item()]
+            preds = distr.sample()[action_set.astype('int32')]
+
+        action_idx = torch.argmax(preds)
+        action = action_set[action_idx.item()]
         return action
 
     def update(self, obs_batch, act_batch, ret_batch):
@@ -260,9 +192,9 @@ class DQNAgent:
         norm_coef = 0
         # TODO use torch_geometric.data.Batch
         for obs, act, ret in zip(obs_batch, act_batch, ret_batch):
-            pred = self.net(obs)[act]
+            logp = self.net(obs).log_prob(torch.tensor(ret))[act]
             coef = np.abs(ret)
-            loss += ((pred - ret) ** 2) * coef
+            loss += -logp.sum() * coef
             norm_coef += coef
         loss /= len(obs_batch) * norm_coef
         loss.backward()
@@ -295,6 +227,17 @@ class StrongAgent:
     def act(self, obs, action_set, epsilon):
         scores = self.strong_branching_function.extract(self.env.model, False)[action_set]
         return action_set[np.argmax(scores)]
+
+    def eval(self):
+        pass
+
+
+class RandomAgent:
+    def __init__(self, device):
+        pass
+
+    def act(self, obs, action_set, epsilon):
+        return np.random.choice(action_set)
 
     def eval(self):
         pass
