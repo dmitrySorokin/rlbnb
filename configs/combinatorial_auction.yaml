@@ -16,4 +16,6 @@ experiment:
 agent:
   name: 'dqn'
   epsilon: 0.1
-  checkpoint: 'outputs/2022-11-30/14-13-31/checkpoint_100086.pkl'
+  # checkpoint: 'outputs/combinatorial_auction/checkpoint_100086.pkl'
+  # checkpoint: 'outputs/combinatorial_auction_thompson/checkpoint_100026.pkl'
+  checkpoint: 'outputs/combinatorial_auction_atoms/checkpoint_100027.pkl'

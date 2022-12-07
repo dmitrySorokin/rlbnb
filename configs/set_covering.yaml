@@ -16,4 +16,4 @@ experiment:
 agent:
   name: 'dqn'
   epsilon: 0.1
-  checkpoint: 'outputs/2022-12-01/12-58-58/checkpoint_100045.pkl'
+  checkpoint: 'outputs/set_covering/checkpoint_100045.pkl'

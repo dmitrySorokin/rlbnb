@@ -16,4 +16,4 @@ experiment:
 agent:
   name: 'dqn'
   epsilon: 0.1
-  checkpoint: 'outputs/2022-12-03/15-55-39/checkpoint_100003.pkl'
+  checkpoint: 'outputs/capacitated_facility_location/checkpoint_100003.pkl'
