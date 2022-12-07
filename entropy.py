@@ -49,7 +49,10 @@ def evaluate(cfg: DictConfig):
 
     df = pd.DataFrame(columns=['bipartite_ce', 'bipartite_entropy', 'tripartite_ce', 'tripartite_entropy'])
 
-    os.mkdir(f'{cfg.experiment.path_to_log}/logits')
+    try:
+        os.mkdir(f'{cfg.experiment.path_to_log}/logits')
+    except FileExistsError:
+        pass
     n = 0
 
     for episode in trange(1000):
@@ -58,7 +61,7 @@ def evaluate(cfg: DictConfig):
             gt_scores, (pseudo_scores, _), obs = obs
             obs = make_tripartite(env, obs, act_set)
         while not done:
-            target = torch.from_numpy((gt_scores[act_set]).argmax()).to(cfg.experiment.device)
+            target = torch.from_numpy(gt_scores[act_set]).argmax(dim=-1).to(cfg.experiment.device)
 
             obs_ = UnpackedBipartite(obs, act_set, cfg.experiment.device)
             bipartite_logits = bipartite_model.net(obs_)
