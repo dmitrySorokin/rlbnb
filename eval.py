@@ -42,7 +42,7 @@ def evaluate(cfg: DictConfig):
     for episode in trange(100):
         obs, act_set, returns, done, info = env.reset()
         while not done:
-            action = agent.act(obs, act_set, epsilon=cfg.agent.epsilon)
+            action, _ = agent.act(obs, act_set, deterministic=True)
             obs, act_set, returns, done, info = env.step(action)
         df = df.append(info, ignore_index=True)
         df.to_csv(f'{out_dir}/{cfg.agent.name}.csv')

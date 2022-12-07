@@ -9,14 +9,15 @@ import os
 from tensorboardX import SummaryWriter
 
 
-def rollout(env, agent, replay_buffer, epsilon, max_tree_size=100):
+def rollout(env, agent, replay_buffer, max_tree_size=100):
     obs, act_set, returns, done, info = env.reset()
-    traj_obs, traj_act = [], []
+    traj_obs, traj_act, traj_mask = [], [], []
 
     while not done:
-        action = agent.act(obs, act_set, epsilon)
+        action, mask = agent.act(obs, act_set, deterministic=False)
         traj_obs.append(obs)
         traj_act.append(action)
+        traj_mask.append(mask)
         obs, act_set, returns, done, info = env.step(action)
 
     assert len(traj_obs) == len(returns)
@@ -25,8 +26,9 @@ def rollout(env, agent, replay_buffer, epsilon, max_tree_size=100):
     traj_obs = np.asarray(traj_obs)[ids]
     traj_act = np.asarray(traj_act)[ids]
     traj_ret = np.asarray(returns)[ids]
-    for obs, act, ret in zip(traj_obs, traj_act, traj_ret):
-        replay_buffer.add_transition(obs, act, ret)
+    traj_mask = np.asarray(traj_mask)[ids]
+    for obs, act, ret, mask in zip(traj_obs, traj_act, traj_ret, traj_mask):
+        replay_buffer.add_transition(obs, act, ret, mask)
 
     return len(ids), info
 
@@ -46,13 +48,9 @@ def main(cfg: DictConfig):
         start_size=cfg.experiment.buffer_start_size
     )
 
-    epsilon_start = 1
-    epsilon_min = 0.01
-    epsilon = epsilon_start
-
     pbar = tqdm(total=replay_buffer.start_size, desc='init')
     while not replay_buffer.is_ready():
-        num_obs, _ = rollout(env, agent, replay_buffer, epsilon)
+        num_obs, _ = rollout(env, agent, replay_buffer)
         pbar.update(num_obs)
     pbar.close()
 
@@ -60,21 +58,19 @@ def main(cfg: DictConfig):
     update = 0
     episode = 0
     while update < pbar.total:
-        num_obs, info = rollout(env, agent, replay_buffer, epsilon)
+        num_obs, info = rollout(env, agent, replay_buffer)
         writer.add_scalar('episode/num_nodes', info['num_nodes'], episode)
         writer.add_scalar('episode/lp_iterations', info['lp_iterations'], episode)
         writer.add_scalar('episode/solving_time', info['solving_time'], episode)
         print(episode, info['num_nodes'])
         episode += 1
-        for i in range(min(num_obs, 100)):
-            obs, act, ret = replay_buffer.sample()
-            loss = agent.update(obs, act, ret)
+        for i in range(num_obs):
+            obs, act, ret, mask = replay_buffer.sample()
+            loss = agent.update(obs, act, ret, mask)
             writer.add_scalar('update/loss', loss, update)
-            writer.add_scalar('update/epsilon', epsilon, update)
             update += 1
             # epsilon = max(epsilon_min, epsilon * epsilon_decay)
-            epsilon = max(epsilon_start * (1.0 - update / pbar.total), epsilon_min)
-            print(f'loss = {loss:.2f}, epsilon = {epsilon:.2f}')
+            print(f'loss = {loss:.2f}')
         agent.save(os.getcwd(), update)
         pbar.update(num_obs)
     pbar.close()

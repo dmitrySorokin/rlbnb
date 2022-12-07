@@ -73,7 +73,8 @@ class BipartiteGCN(nn.Module):
                  emb_size=64,
                  cons_nfeats=5,
                  edge_nfeats=1,
-                 var_nfeats=43):
+                 var_nfeats=43,
+                 n_heads=50):
         super().__init__()
 
         self.device = device
@@ -111,7 +112,7 @@ class BipartiteGCN(nn.Module):
             nn.Linear(emb_size, emb_size),
             nn.LeakyReLU(inplace=True),
             nn.Linear(emb_size, 1)
-        ) for _ in range(50)])
+        ) for _ in range(n_heads)])
 
         self.init_model_parameters()
         self.to(device)
@@ -129,7 +130,7 @@ class BipartiteGCN(nn.Module):
         for h in self.heads:
             h.apply(init_params)
 
-    def forward(self, obs):
+    def forward(self, obs, mask=None):
         constraint_features = torch.from_numpy(
             obs.row_features.astype(np.float32)
         ).to(self.device)
@@ -163,10 +164,9 @@ class BipartiteGCN(nn.Module):
         )
 
         # get output for each head
-        masks = torch.FloatTensor(len(self.heads)).uniform_() > 0.5
         head_output = [
             head(variable_features).squeeze(-1)
-            for mask, head in zip(masks, self.heads) if mask
+            for is_enabled, head in zip(mask, self.heads) if is_enabled
         ]
         head_output = torch.stack(head_output, dim=0).mean(dim=0)
 
@@ -178,21 +178,28 @@ class DQNAgent:
         self.net = BipartiteGCN(device=device, var_nfeats=24)
         self.opt = torch.optim.Adam(self.net.parameters())
 
-    def act(self, obs, action_set, epsilon):
+    def act(self, obs, action_set, deterministic):
+        if deterministic:
+            mask = torch.ones(len(self.net.heads))
+        else:
+            mask = torch.zeros(len(self.net.heads))
+            mask[torch.randint(len(self.net.heads), (1,))] = 1.0
+            # mask = torch.FloatTensor(len(self.net.heads)).uniform_() > 0.5
+
         with torch.no_grad():
-            preds = self.net(obs)[action_set.astype('int32')]
+            preds = self.net(obs, mask)[action_set.astype('int32')]
 
         action_idx = torch.argmax(preds)
         action = action_set[action_idx.item()]
-        return action
+        return action, mask
 
-    def update(self, obs_batch, act_batch, ret_batch):
+    def update(self, obs_batch, act_batch, ret_batch, mask_batch):
         self.opt.zero_grad()
         loss = 0
         norm_coef = 0
         # TODO use torch_geometric.data.Batch
-        for obs, act, ret in zip(obs_batch, act_batch, ret_batch):
-            pred = self.net(obs)[act]
+        for obs, act, ret, mask in zip(obs_batch, act_batch, ret_batch, mask_batch):
+            pred = self.net(obs, mask)[act]
             coef = np.abs(ret)
             loss += ((pred - ret) ** 2) * coef
             norm_coef += coef
