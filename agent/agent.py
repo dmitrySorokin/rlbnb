@@ -180,10 +180,10 @@ class DQNAgent:
 
     def act(self, obs, action_set, deterministic):
         if deterministic:
-            mask = torch.ones(len(self.net.heads))
+            mask = np.ones(len(self.net.heads))
         else:
-            mask = torch.zeros(len(self.net.heads))
-            mask[torch.randint(len(self.net.heads), (1,))] = 1.0
+            mask = np.zeros(len(self.net.heads))
+            mask[np.random.randint(0, len(self.net.heads), (1,))] = 1.0
             # mask = torch.FloatTensor(len(self.net.heads)).uniform_() > 0.5
 
         with torch.no_grad():
