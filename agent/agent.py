@@ -182,9 +182,9 @@ class DQNAgent:
         if deterministic:
             mask = np.ones(len(self.net.heads))
         else:
-            mask = np.zeros(len(self.net.heads))
-            mask[np.random.randint(0, len(self.net.heads), (1,))] = 1.0
-            # mask = torch.FloatTensor(len(self.net.heads)).uniform_() > 0.5
+            # mask = np.zeros(len(self.net.heads))
+            # mask[np.random.randint(0, len(self.net.heads), (1,))] = 1.0
+            mask = torch.FloatTensor(len(self.net.heads)).uniform_() > 0.5
 
         with torch.no_grad():
             preds = self.net(obs, mask)[action_set.astype('int32')]
