@@ -484,10 +484,12 @@ class DQNAgent:
 
 
 class ImitationAgent:
-    def __init__(self, device, observation_format='tripartite', target='expert_actions', loss_function='cross_entropy'):
+    def __init__(self, device, observation_format='tripartite', target='expert_actions', loss_function='cross_entropy',
+                 encode_possible_actions=True):
         assert observation_format in ['bipartite', 'tripartite']
         if observation_format == 'bipartite':
-            self.net = BipartiteGCN(device=device)
+            self.net = BipartiteGCN(device=device,
+                                    encode_possible_actions=encode_possible_actions)
         elif observation_format == 'tripartite':
             self.net = TripartiteGCN(device=device)
         self.opt = torch.optim.Adam(self.net.parameters())
