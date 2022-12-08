@@ -4,16 +4,16 @@ import operator as op
 
 from warnings import warn
 from itertools import chain
-from math import fsum, isclose
-
-from enum import Enum
-from numpy import ndarray
-from collections import namedtuple
-
+from math import fsum, isclose, isnan
 from heapq import heappop, heappush
 
 # use monotonic for visitation order
 from time import monotonic_ns
+
+from typing import Union
+from enum import Enum
+from numpy import ndarray
+from collections import namedtuple
 
 from ecole.core.scip import Model as ecole_Model
 
@@ -76,33 +76,80 @@ def build_optresult(
     )
 
 
-def get_sol_result(m: Model, sol: Solution, sign: float = 1.0) -> OptimizeResult:
-    """Parse SCIP's solution and evaluate it."""
+# SCIP_NODETYPE: form `type_tree.h`
+# FOCUSNODE   =  0  # the focus node
+# PROBINGNODE =  1  # temp. child node of the focus or refocused node used for probing
+# SIBLING     =  2  # unsolved sibling of the focus node
+# CHILD       =  3  # unsolved child of the focus node
+# LEAF        =  4  # unsolved leaf of the tree, stored in the tree's queue
+# DEADEND     =  5  # temporary type of focus node, if it was solved completely
+# JUNCTION    =  6  # fork without LP solution
+# PSEUDOFORK  =  7  # fork without LP solution and added rows and columns
+# FORK        =  8  # fork with solved LP and added rows and columns
+# SUBROOT     =  9  # fork with solved LP and arbitrarily changed rows and columns
+# REFOCUSNODE = 10  # refocused for domain propagation (junction, fork, or subroot)
 
-    # pyscipopt does not implement meaningful method for a solution, but
-    #  thankfully, its repr is that of a dict, so it is kind of a proto-dict
-    x = eval(repr(sol), {}, {})  # XXX dirty hack!
+
+def evaluate_sol(
+    m: Model,
+    x: Union[Solution, dict[str, float]],
+    sign: float = 1.0,
+    *,
+    transformed: bool = True,
+) -> OptimizeResult:
+    """Parse SCIP's solution and evaluate it"""
+    if isinstance(x, Solution):
+        # pyscipopt does not implement meaningful way to extract a solution, but
+        #  thankfully, its repr is that of a dict, so it is kind of a proto-dict
+        x = eval(repr(x), {}, {})  # XXX dirty hack!
+
+    if not isinstance(x, dict):
+        raise NotImplementedError(type(x))
 
     # get the coefficients in linear objective and the offset
     # XXX it appears that getVars and sol's dict have variables is the same order
-    obj = {v.name: v.getObj() for v in m.getVars(True)}
-    val = fsum(obj[k] * v for k, v in x.items())
-    c0 = m.getObjoffset(False)
+    obj = {v.name: v.getObj() for v in m.getVars(transformed)}
+    if obj.keys() != x.keys():
+        raise RuntimeError(f"Invalid solution `{x}` for `{obj}`")
 
-    return build_optresult(x=x, fun=sign * (c0 + val), status=0, nit=-1)
+    val = fsum(obj[k] * v for k, v in x.items())
+    # XXX the LP seems to be always `\min`
+    # assert isclose(val, m.getCurrentNode().getLowerbound())  # XXX lb is w.r.t. `\min`
+
+    # we hope, the offset has the correct sign for the LPs inside nodes
+    c0 = m.getObjoffset(not transformed)  # XXX to be used for comparing with incumbent
+    return build_optresult(x=x, fun=sign * (c0 + val), status=-1, nit=0)
 
 
 DualBound = namedtuple("DualBound", "val,node")
 
 
-class Status(Enum):
-    OPEN = 0  # nodes that were never focused on
-    CLOSED = 4  # nodes that were once in focus (assuming no re-visits!)
-    PRUNED = 1  # nodes that we confirmed to be fathomed due to primal-dual pruning
-    FATHOMED = -1  # fathomed (pruned/integer-feasible/infeasible) by SCIP
+class TracerNodeType(Enum):
+    OPEN = 0
+    FOCUS = 1  # the OPEN node is being focused on
+    CLOSED = 2
+    FATHOMED = 3
+    PRUNED = 4
+    SPECIAL = -1
 
 
 class Tracer:
+    """Search-tree tracer for SCIP
+
+    Details
+    -------
+    Tracking SCIP through pyscipopt is hard. This logic in this class attempts
+    its best to recover and assign the lp solutions, lowerbounds to the tree
+    nodes. The situation is exacerbated by the very rich and complex inner logic
+    of SCIP: the nodes may change their type, may have their lower bound updated
+    after a visit, and may get repurposed without any prior notification.
+
+    The entry point to the instances is `.update` method. It begins by adding the
+    current focus node into the tree, making sure that every ancestor is up-to-date,
+    then tracks changes to the frontier -- the so called open nodes, which represent
+    yet unvisited solution regions.
+    """
+
     sign: float
     is_worse: callable
     T: nx.DiGraph
@@ -123,15 +170,71 @@ class Tracer:
         self.is_worse = op.lt if sense == "max" else op.gt
 
         # figure out the objective and how to compare the solutions
-        # XXX actually we can use the `get_sol_result(m.getBestSol())`
-        val = float("-inf" if sense == "max" else "+inf")
-        inc = build_optresult(x={}, fun=val, nit=-1, status=0)
+        # XXX actually we can use the `evaluate_sol(m, m.getBestSol(), self.sign)`
+        inc = self.get_default_lp(float("-inf" if sense == "max" else "+inf"))
 
         self.duals_, self.trace_, self.focus_, self.nit_ = [], [], None, 0
         self.shadow_, self.frontier_, self.fathomed_ = None, set(), set()
         self.T = nx.DiGraph(root=None, incumbent=inc)
 
-    def add_lineage(self, m: Model, n: Node) -> int:
+    @staticmethod
+    def get_default_lp(fun: float = float("nan")) -> OptimizeResult:
+        # fun = self.sign * (m.getObjoffset(not transformed) + n.getLowerbound())
+        # default solution status is `NOTSOLVED`
+        return build_optresult(x={}, fun=fun, status=4, nit=-1)
+
+    def get_focus_lp(self, m: Model, *, transformed: bool = True) -> OptimizeResult:
+        """Recover the local LP of the focus node"""
+        # the only lp solution accessible through the model is the one at the focus
+        # XXX the lp solution at the FOCUS node cannot be integer feasible,
+        #  since otherwise we would not have been called in the first place
+        x = {v.name: v.getLPSol() for v in m.getVars(transformed)}
+        partial = evaluate_sol(m, x, self.sign, transformed=transformed)
+        return build_optresult(
+            x=partial.x,
+            fun=partial.fun,
+            status=SCIP_LPSOLSTAT_TO_NUMERIC[m.getLPSolstat()],
+            nit=m.getNLPIterations() - self.nit_,
+        )
+
+    def create_node(self, n: Node) -> int:
+        """Create a node in the tree with default attributes"""
+        n_visits = 0
+
+        # only open nodes and the root can be overwritten
+        j = int(n.getNumber())
+        if j in self.T:
+            n_visits = self.T.nodes[j]["n_visits"]
+            if self.T.nodes[j]["type"] != TracerNodeType.OPEN:
+                raise RuntimeError(j)
+
+        self.T.add_node(
+            j,
+            scip_type=n.getType(),  # SIBLING, LEAF, CHILD
+            type=TracerNodeType.OPEN,
+            best=None,
+            lp=self.get_default_lp(),
+            # the lowerbound is untrusted until the node focused
+            lb=float("nan"),
+            n_visits=n_visits,
+            n_order=-1,  # monotonic visitation order (-1 -- never visited)
+        )
+
+        return j
+
+    def update_node(self, m: Model, n: Node) -> int:
+        """Update an existing node"""
+        j = int(n.getNumber())
+        if j not in self.T:
+            raise KeyError(j)
+
+        # if the node has been added earlier, then update its SCIP's type
+        # SIBLING -> LEAF, SIBLING -> FOCUSNODE, LEAF -> FOCUSNODE
+        self.T.add_node(j, scip_type=n.getType())
+
+        return j
+
+    def update_lineage(self, m: Model, n: Node) -> None:
         """Add node's representation to the tree and ensure its lineage exists."""
         assert isinstance(n, Node)
         if n.getType() not in (
@@ -142,28 +245,10 @@ class Tracer:
         ):
             raise NotImplementedError
 
-        # add an un-visited node
-        j = v = int(n.getNumber())
-        if v not in self.T:
-            # use the lower bound info (actually uninitialized until focused)
-            fun = m.getObjoffset(False) + n.getLowerbound()
+        v = self.update_node(m, n)
+        vlp = self.T.nodes[v]["lp"]
 
-            self.T.add_node(
-                v,
-                type=n.getType(),  # SIBLING, LEAF, CHILD, FOCUSNODE
-                lp=build_optresult(x={}, fun=self.sign * fun, status=0, nit=-1),
-                best=None,
-                status=Status.OPEN,
-                n_visits=0,
-                n_order=-1,  # monotonic visitation order (-1 -- never visited)
-            )
-
-        # if the node has been added earlier, then update its SCIP's type
-        else:
-            # SIBLING -> LEAF, SIBLING -> FOCUSNODE, LEAF -> FOCUSNODE
-            self.T.add_node(v, type=n.getType())
-
-        # continue unless we reach the root
+        # ascend unless we have reached the root
         p = n.getParent()
         while p is not None:
             # guard against poorly understood node types
@@ -177,26 +262,24 @@ class Tracer:
 
             # add an un-visited node
             # XXX `add_edge` silently adds the endpoints, so we add them first
-            u = int(p.getNumber())
-            if u not in self.T:
-                fun = m.getObjoffset(False) + p.getLowerbound()
-                self.T.add_node(
-                    u,
-                    type=p.getType(),  # SIBLING, LEAF, CHILD, FOCUSNODE
-                    lp=build_optresult(x={}, fun=self.sign * fun, status=0, nit=-1),
-                    best=None,
-                    status=Status.OPEN,
-                    n_visits=0,
-                    n_order=-1,
-                )
+            u = self.update_node(m, p)
+            ulp = self.T.nodes[u]["lp"]
+            assert ulp.x  # XXX the parent must have non-default lp by design
 
-            # if the node has been added earlier, then update its SCIP's type
-            else:
-                self.T.add_node(u, type=p.getType())
+            # get the gain using the recovered lp solutions
+            # XXX `getLowerbound` is w.r.t. `\min`, so no need for the `sign`, however
+            #  it's value on prior focused nodes is unreliable, e.g. infinite bound,
+            #  while the node reports a valid LP solution (with `success=True`).
+            # `gain = max(n.getLowerbound() - p.getLowerbound(), 0.0)`
+            gain = max(self.sign * (vlp.fun - ulp.fun), 0.0)
+            # np.isclose(sum(c * (vx[k] - ux[k]) for k, c in obj.items()), gain)
 
-            # get the lp gain
-            # XXX the lower bound is meaningless until the child is focused
-            gain = max(self.sign * (n.getLowerbound() - p.getLowerbound()), 0)
+            # XXX unless NaN, gain IS the difference between SCIP's reported lb
+            ref = self.T.nodes[v]["lb"] - self.T.nodes[u]["lb"]
+            assert isnan(gain) or isclose(gain, ref, rel_tol=1e-5, abs_tol=1e-6)
+
+            ref = self.T.edges.get((u, v), dict(g=float("nan")))["g"]
+            assert isnan(ref) or isclose(gain, ref, rel_tol=1e-5, abs_tol=1e-6)
 
             # establish or update the parent (u) child (v) link
             # XXX see [SCIP_BOUNDTYPE](/src/scip/type_lp.h#L44-50) 0-lo, 1-up
@@ -209,14 +292,11 @@ class Tracer:
                 by, cost = var.getIndex(), var.getObj()
 
                 # XXX use the (unique) name of the splitting variable
-                frac = abs(self.T.nodes[u]["lp"].x[repr(var)] - bound)
+                frac = abs(ulp.x[repr(var)] - bound)
 
-            self.T.add_edge(u, v, key=dir, j=by, g=gain, f=frac, p=gain / frac, c=cost)
+            self.T.add_edge(u, v, key=dir, j=by, g=gain, f=frac, c=cost)
 
-            # ascend
-            v, n, p = u, p, p.getParent()
-
-        return j
+            v, vlp, n, p = u, ulp, p, p.getParent()
 
     def enter(self, m: Model) -> int:
         """Begin processing the focus node at the current branching point."""
@@ -233,58 +313,42 @@ class Tracer:
         #  frontier node, and bnb does not revisit nodes
         assert n.getType() == SCIP_NODETYPE.FOCUSNODE
 
-        # if we're visiting a former child/sibling/leaf make sure it is OPEN,
-        #  and not shadow visited by SCIP, i.e. FATHOMED.
-        if n.getParent() is not None and n.getNumber() in self.T:
-            j = n.getNumber()
-            if self.T.nodes[j]["status"] != Status.OPEN:
-                raise NotImplementedError(
-                    f"SCIP should not focus on non-open nodes. Got `{j}`."
-                )
-
         # add the node to the tree and recover its LP solution
-        # XXX SCIP guarantees that a node's number uniquely identifies a search
-        #  node, even those whose memory SCIP reclaimed
-        j = self.focus_ = self.add_lineage(m, n)  # OPEN
+        # XXX the current node might have been added earlier during the frontier,
+        #  scan. SCIP guarantees that a node's number uniquely identifies a search
+        #  node, even those whose memory SCIP reclaimed.
+        # XXX if we're visiting a former child/sibling/leaf make sure it is OPEN
+        j = self.create_node(n)
 
-        # use monotonic clock, which cannot go backward, for recording the
-        #  focus/visitation order
-        self.T.nodes[j]["n_order"] = monotonic_ns()
-
-        # the root may get visited twice
+        # only the root may get visited twice
         if n.getParent() is not None and self.T.nodes[j]["n_visits"] > 0:
             raise NotImplementedError(
                 f"SCIP should not revisit nodes, other than the root. Got `{j}`."
             )
 
-        # Extract the local LP solution at the focus node
-        # XXX the LP seems to be always `\min`
-        trans = True
-        x = {v.name: v.getLPSol() for v in m.getVars(trans)}
-        val = fsum(v.getLPSol() * v.getObj() for v in m.getVars(trans))
-        assert isclose(val, n.getLowerbound())  # XXX lb is w.r.t. `\min`
-
-        # we hope, the offset has the correct sign for the LPs inside nodes
-        c0 = m.getObjoffset(not trans)  # XXX to be used for comparing with incumbent
-
-        # the lp solution at the focus node cannot be integer feasible, since
-        #  otherwise we would not be called in the first place
-        lp = self.T.nodes[j]["lp"] = build_optresult(
-            x=x,
-            fun=self.sign * (c0 + val),
-            status=SCIP_LPSOLSTAT_TO_NUMERIC[m.getLPSolstat()],
-            nit=m.getNLPIterations() - self.nit_,
+        self.T.add_node(
+            j,
+            scip_type=n.getType(),  # FOCUSNODE
+            type=TracerNodeType.FOCUS,
+            lp=self.get_focus_lp(m, transformed=True),
+            lb=n.getLowerbound(),  # XXX for sanity check
+            best=None,
+            # use monotonic clock for recording the focus/visitation order
+            n_order=monotonic_ns(),
+            n_visits=self.T.nodes[j]["n_visits"] + 1,
         )
+        self.update_lineage(m, n)
 
         # XXX technically we don't need to store the root node, since there can
         # only be one
         if self.T.graph["root"] is None:
             self.T.graph["root"] = j
 
-        # maintain our own pruning pq
+        # maintain our own pruning pq (max-heap)
         # XXX the lp value of a node is not available until it is in focus, so
         #  we do not do this, when enumerating the open frontier
-        heappush(self.duals_, DualBound(-lp.fun, j))
+        # XXX the values in `duals` are -ve (for max heap) of the lp bounds in MIN sense
+        heappush(self.duals_, DualBound(-self.sign * self.T.nodes[j]["lp"].fun, j))
 
         # then current focus node may not have been designated by us as an open
         #  node, since it is the immediate child of the last focus node, and we
@@ -298,8 +362,8 @@ class Tracer:
             pass
 
         self.nit_ = m.getNLPIterations()
+        self.focus_ = j
 
-        self.T.nodes[j]["n_visits"] += 1
         return j
 
     def leave(self, m: Model) -> None:
@@ -307,10 +371,11 @@ class Tracer:
         that was revealed upon calling branching at a new focus node.
         """
         assert self.focus_ is not None
+        assert self.T.nodes[self.focus_]["type"] == TracerNodeType.FOCUS
 
         # close the focus node from our previous visit, since SCIPs bnb never
         #  revisits
-        self.T.nodes[self.focus_]["status"] = Status.CLOSED
+        self.T.nodes[self.focus_]["type"] = TracerNodeType.CLOSED
 
     def prune(self) -> None:
         """SCIP shadow-fathoms the nodes for us. We attempt to recover, which
@@ -318,26 +383,34 @@ class Tracer:
         """
 
         nodes = self.T.nodes
-        while self.duals_ and (self.T.graph["incumbent"].fun < -self.duals_[0].val):
+        # convert the incumbent cutoff to MIN sense, since duals is max heap of `MIN`
+        cutoff = self.sign * self.T.graph["incumbent"].fun
+        while self.duals_ and (cutoff < -self.duals_[0].val):
             node = heappop(self.duals_).node
             # do not fathom nodes, re-fathomed by SCIP
-            if nodes[node]["status"] == Status.FATHOMED:
+            if nodes[node]["type"] == TracerNodeType.FATHOMED:
                 continue
 
-            assert nodes[node]["status"] in (Status.OPEN, Status.CLOSED)
-            nodes[node]["status"] = Status.PRUNED
+            assert nodes[node]["type"] in (TracerNodeType.OPEN, TracerNodeType.CLOSED)
+            nodes[node]["type"] = TracerNodeType.PRUNED
 
     def add_frontier(self, m: Model) -> set:
         """Update the set of tracked open nodes and figure out shadow-visited ones."""
+        leaves, children, siblings = m.getOpenNodes()
+        if children:
+            raise NotImplementedError("Child nodes created prior to vising the parent!")
 
         # ensure all currently open nodes from SCIP are reflected in the tree
         # XXX [xternal.c](scip-8.0.1/doc/xternal.c#L3668-3686) implies that the
         #  other getBest* methods pick nodes from the open (unprocessed) frontier
         new_frontier = set()
-        for n in chain(*m.getOpenNodes()):
-            new_frontier.add(self.add_lineage(m, n))
+        for n in chain(leaves, children, siblings):
+            # sanity check: SIBLING, LEAF, CHILD
+            assert n.getType() != SCIP_NODETYPE.FOCUSNODE
+            new_frontier.add(self.create_node(n))
             # XXX We do not add to the dual pq here, becasue the leaf, child
             #  and sibling nodes appear to have uninitialized default lp values
+            self.update_lineage(m, n)
 
         # if the current set of open nodes is not a subset of the open nodes
         #  upon processing the previous focus node, then SCIP in its solver
@@ -349,12 +422,12 @@ class Tracer:
             #  in between consecutive calls to var branching. Each
             #  could've been PRUNED, or marked as FEASIBLE/INFEASIBLE.
             #  One way or the other they're FATHOMED.
-            self.T.nodes[j]["status"] = Status.FATHOMED
+            self.T.nodes[j]["type"] = TracerNodeType.FATHOMED
 
         self.frontier_ = new_frontier
         return shadow
 
-    def update(self, m: Model, fin: bool = False) -> None:
+    def update(self, m: Model, terminate: bool = False) -> None:
         """Update the tracer tree."""
 
         # finish processing the last focus
@@ -362,9 +435,9 @@ class Tracer:
             self.leave(m)
 
         # start processing the current focus node, unless the search has finished
-        # XXX we check `fin` flag, since occasionally the current node may not
-        #  be none when BnB is finished (a memleak?)
-        if not fin and m.getCurrentNode() is not None:
+        # XXX we check `terminate` flag, since occasionally the current node may
+        #  not be none when BnB is finished (a memleak?)
+        if not terminate and m.getCurrentNode() is not None:
             j = self.enter(m)
 
             # record the path through the tree
@@ -392,7 +465,7 @@ class Tracer:
         #  [primalAddSol](primal.c#1064)
         sols = m.getSols()
         if sols:
-            lp = get_sol_result(m, sols[0], self.sign)
+            lp = evaluate_sol(m, sols[0], self.sign, transformed=True)
             if self.is_worse(self.T.graph["incumbent"].fun, lp.fun):
                 self.T.graph["incumbent"] = lp
 
