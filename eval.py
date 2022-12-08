@@ -45,7 +45,7 @@ def evaluate(cfg: DictConfig):
             action, _ = agent.act(obs, act_set, deterministic=True)
             obs, act_set, returns, done, info = env.step(action)
         df = df.append(info, ignore_index=True)
-        df.to_csv(f'{out_dir}/{cfg.agent.name}.csv')
+        df.to_csv(f'{out_dir}/{cfg.agent.name}{cfg.agent.suffix}.csv')
         print(np.median(df['num_nodes']), np.std(df['num_nodes']))
 
 
