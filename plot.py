@@ -52,14 +52,15 @@ if __name__ == '__main__':
     path = args.path
     strong = filter_presolved(pd.read_csv(f'{path}/strong.csv')[key].to_numpy())
 
+    results = []
+
     for fname in os.listdir(path):
         if not fname.endswith('.csv'):
             continue
 
         data = filter_presolved(pd.read_csv(f'{path}/' + fname)[key].to_numpy())
-        print(
-            f'{fname}: tot = {len(data)}, median = {np.median(data):.2f}, '
-            f'mean = {np.mean(data):.2f}, std = {np.std(data):.2f}'
+        results.append(
+            (fname, len(data), np.median(data), np.mean(data), np.std(data))
         )
 
         # plt.hist(data, bins=100, log=True)
@@ -69,6 +70,13 @@ if __name__ == '__main__':
 
         u, p = pp_curve(x=strong, y=data)
         ax.plot(u, p, label=fname[:-4])
+
+    print(f"{'name':<25} {'tot':<10} {'median':<10} {'mean':<10} {'std':<10}")
+    print('-' * 65)
+    for (name, length, median, mean, std) in sorted(results, key=lambda item: item[2]):
+        print(
+            f'{name:<25} {length:<10.2f} {median:<10.2f} {mean:<10.2f} {std:<10.2f}'
+        )
 
     ax.plot((0, 1), (0, 1), c="k", zorder=10, alpha=0.25)
     ax.set_xlim(-0.025, 1.025)
@@ -81,5 +89,5 @@ if __name__ == '__main__':
     ax.set_aspect(1.)
 
     plt.legend()
-    plt.savefig(f'pp_{key}.pdf')
+    plt.savefig(f'{path}/pp_{key}.pdf')
     plt.show()
