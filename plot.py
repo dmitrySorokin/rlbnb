@@ -48,8 +48,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     fig, ax = plt.subplots(1, 1)
-    key = args.key
-    path = args.path
+    key, path = args.key, args.path
     strong = filter_presolved(pd.read_csv(f'{path}/strong.csv')[key].to_numpy())
 
     results = []
@@ -59,24 +58,20 @@ if __name__ == '__main__':
             continue
 
         data = filter_presolved(pd.read_csv(f'{path}/' + fname)[key].to_numpy())
-        results.append(
-            (fname, len(data), np.median(data), np.mean(data), np.std(data))
-        )
+        results.append((fname[:-4], data))
 
         # plt.hist(data, bins=100, log=True)
         # plt.title(fname)
         # plt.savefig(f'hist_{fname[:-4]}.pdf')
         # plt.close()
 
-        u, p = pp_curve(x=strong, y=data)
-        ax.plot(u, p, label=fname[:-4])
-
     print(f"{'name':<25} {'tot':<10} {'median':<10} {'mean':<10} {'std':<10}")
     print('-' * 65)
-    for (name, length, median, mean, std) in sorted(results, key=lambda item: item[2]):
-        print(
-            f'{name:<25} {length:<10.2f} {median:<10.2f} {mean:<10.2f} {std:<10.2f}'
-        )
+    for (name, data) in sorted(results, key=lambda item: np.median(item[1])):
+        print(f'{name:<25} {len(data):<10.2f} {np.median(data):<10.2f} {np.mean(data):<10.2f} {np.std(data):<10.2f}')
+
+        u, p = pp_curve(x=strong, y=data)
+        ax.plot(u, p, label=name)
 
     ax.plot((0, 1), (0, 1), c="k", zorder=10, alpha=0.25)
     ax.set_xlim(-0.025, 1.025)
