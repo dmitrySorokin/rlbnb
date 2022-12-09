@@ -625,3 +625,42 @@ class LPGains:
             #    hence they get a +1 reward
 
         return np.array(scores, dtype=np.float32) ** self.gamma
+
+
+if __name__ == '__main__':
+    import tqdm
+    import ecole as ec
+    from ecole.environment import Branching
+
+    rew_tracer = LPGains()
+    gasse_2019_scip_params = {
+        'separating/maxrounds': 0,  # separate (cut) only at root node
+        'presolving/maxrestarts': 0,  # disable solver restarts
+        'limits/time': 20 * 60,  # solver time limit
+        'limits/gap': 3e-3,
+        'limits/nodes': 25,
+    }
+
+    env = Branching(
+        observation_function=ec.observation.StrongBranchingScores(),
+        information_function=rew_tracer,
+        scip_params=gasse_2019_scip_params
+    )
+
+    res = []
+    it = ec.instance.CombinatorialAuctionGenerator(n_items=50, n_bids=250)
+    # see we throw anything
+    for mod, _ in zip(tqdm.tqdm(it, ncols=70), range(100)):
+        # mod.disable_presolve()
+
+        n_steps = 0
+        obs, act, rew, fin, nfo = env.reset(mod)
+        while not fin:
+            # use sb scores and branch
+            var = act[obs[act].argmax(-1)]
+            n_steps += 1
+
+            obs, act, rew, fin, nfo = env.step(var)
+
+        if n_steps > 0:
+            res.append(nfo)
