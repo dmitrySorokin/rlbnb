@@ -1,6 +1,6 @@
 from .obs import NodeBipariteWith24VariableFeatures
 from .reward import RetroBranching
-from .tracer import NegLogTreeSize
+from .tracer import NegLogTreeSize, LPGains
 import ecole
 
 
@@ -12,6 +12,9 @@ class EcoleBranching(ecole.environment.Branching):
 
         elif reward_function == "tracer":
             reward_function = NegLogTreeSize()
+
+        elif reward_function == "lp-gains":
+            reward_function = LPGains(gamma=0.25, pseudocost=False)
 
         else:
             raise NotImplementedError(reward_function)
