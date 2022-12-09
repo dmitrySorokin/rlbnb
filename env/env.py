@@ -43,3 +43,4 @@ class EcoleBranching(ecole.environment.Branching):
             if not done:
                 info['instance'] = instance
                 return obs, act_set, reward, done, info
+        raise StopIteration
