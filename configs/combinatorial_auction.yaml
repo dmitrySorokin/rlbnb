@@ -15,7 +15,10 @@ experiment:
 
 agent:
   name: 'dqn'
+  suffix: '_atoms_single'
   epsilon: 0.1
   # checkpoint: 'outputs/combinatorial_auction/checkpoint_100086.pkl'
   # checkpoint: 'outputs/combinatorial_auction_thompson/checkpoint_100026.pkl'
-  checkpoint: 'outputs/combinatorial_auction_atoms/checkpoint_100027.pkl'
+  # checkpoint: 'outputs/combinatorial_auction_atoms/checkpoint_100027.pkl'
+  checkpoint: 'outputs/combinatorial_auction_atoms_single/checkpoint_100001.pkl'
+  # checkpoint: 'outputs/combinatorial_auction_atoms_multiple/checkpoint_100064.pkl'
