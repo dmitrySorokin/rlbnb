@@ -175,16 +175,16 @@ class BipartiteGCN(nn.Module):
 
 class DQNAgent:
     def __init__(self, device):
-        self.net = BipartiteGCN(device=device, var_nfeats=24)
+        self.net = BipartiteGCN(device=device, var_nfeats=24, n_heads=50)
         self.opt = torch.optim.Adam(self.net.parameters())
 
     def act(self, obs, action_set, deterministic):
         if deterministic:
             mask = np.ones(len(self.net.heads))
         else:
-            # mask = np.zeros(len(self.net.heads))
-            # mask[np.random.randint(0, len(self.net.heads), (1,))] = 1.0
-            mask = np.random.rand(len(self.net.heads)) > 0.5
+            mask = np.zeros(len(self.net.heads))
+            mask[np.random.randint(0, len(self.net.heads), (1,))] = 1.0
+            # mask = np.random.rand(len(self.net.heads)) > 0.5
 
         with torch.no_grad():
             preds = self.net(obs, mask)[action_set.astype('int32')]
@@ -231,9 +231,15 @@ class StrongAgent:
     def before_reset(self, model):
         self.strong_branching_function.before_reset(model)
 
-    def act(self, obs, action_set, epsilon):
+    def act(self, obs, action_set, deterministic):
         scores = self.strong_branching_function.extract(self.env.model, False)[action_set]
-        return action_set[np.argmax(scores)]
+        return action_set[np.argmax(scores)], None
 
     def eval(self):
         pass
+
+
+class RandomAgent:
+    def act(self, obs, action_set, deterministic):
+        action = np.random.choice(action_set)
+        return action, None

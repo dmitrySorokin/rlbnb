@@ -5,7 +5,7 @@ from tasks import gen_co_name
 from utils import get_most_recent_checkpoint_foldername
 import hydra
 from omegaconf import DictConfig
-from agent import DQNAgent, StrongAgent
+from agent import DQNAgent, StrongAgent, RandomAgent
 from env import EcoleBranching
 import pandas as pd
 from tqdm import trange
@@ -29,8 +29,7 @@ def evaluate(cfg: DictConfig):
         print('eval checkpoint', cfg.agent.checkpoint)
         agent.load(f'../../../{cfg.agent.checkpoint}')
     elif cfg.agent.name == 'random':
-        agent = DQNAgent(device='cpu')
-        assert cfg.agent.epsilon == 1
+        agent = RandomAgent()
     else:
         raise ValueError(f'Unknown agent name {cfg.agent.name}')
 
