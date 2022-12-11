@@ -627,24 +627,24 @@ class LPGains:
         return np.array(scores, dtype=np.float32) ** self.gamma
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import tqdm
     import ecole as ec
     from ecole.environment import Branching
 
     rew_tracer = LPGains()
     gasse_2019_scip_params = {
-        'separating/maxrounds': 0,  # separate (cut) only at root node
-        'presolving/maxrestarts': 0,  # disable solver restarts
-        'limits/time': 20 * 60,  # solver time limit
-        'limits/gap': 3e-3,
-        'limits/nodes': 25,
+        "separating/maxrounds": 0,  # separate (cut) only at root node
+        "presolving/maxrestarts": 0,  # disable solver restarts
+        "limits/time": 20 * 60,  # solver time limit
+        "limits/gap": 3e-3,
+        "limits/nodes": 25,
     }
 
     env = Branching(
         observation_function=ec.observation.StrongBranchingScores(),
         information_function=rew_tracer,
-        scip_params=gasse_2019_scip_params
+        scip_params=gasse_2019_scip_params,
     )
 
     res = []

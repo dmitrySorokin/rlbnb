@@ -5,26 +5,30 @@ from craballoc.problem import FixedScheduleCRopt
 from craballoc.bnb.fixsched import setup
 from pyscipopt import quicksum
 import pyscipopt as scip
-from omegaconf import DictConfig
+
+from typing import Iterable
 
 
-def make_instances(cfg: DictConfig):
-    if cfg.instances.co_class == 'set_covering':
-        instances = ecole.instance.SetCoverGenerator(**cfg.instances.co_class_kwargs)
-    elif cfg.instances.co_class == 'combinatorial_auction':
-        instances = ecole.instance.CombinatorialAuctionGenerator(**cfg.instances.co_class_kwargs)
-    elif cfg.instances.co_class == 'capacitated_facility_location':
-        instances = ecole.instance.CapacitatedFacilityLocationGenerator(**cfg.instances.co_class_kwargs)
-    elif cfg.instances.co_class == 'maximum_independent_set':
-        instances = ecole.instance.IndependentSetGenerator(**cfg.instances.co_class_kwargs)
-    elif cfg.instances.co_class == 'crabs':
-        instances = generate_craballoc(**cfg.instances.co_class_kwargs)
-    elif cfg.instances.co_class == 'tsp':
-        instances = generate_tsp(**cfg.instances.co_class_kwargs)
-    else:
-        raise Exception(f'Unrecognised co_class {cfg.instances.co_class}')
+def make_instances(co_class: str, co_class_kwargs: dict) -> Iterable:
+    if co_class == "set_covering":
+        return ecole.instance.SetCoverGenerator(**co_class_kwargs)
 
-    return instances
+    if co_class == "combinatorial_auction":
+        return ecole.instance.CombinatorialAuctionGenerator(**co_class_kwargs)
+
+    if co_class == "capacitated_facility_location":
+        return ecole.instance.CapacitatedFacilityLocationGenerator(**co_class_kwargs)
+
+    if co_class == "maximum_independent_set":
+        return ecole.instance.IndependentSetGenerator(**co_class_kwargs)
+
+    if co_class == "crabs":
+        return generate_craballoc(**co_class_kwargs)
+
+    if co_class == "tsp":
+        return generate_tsp(**co_class_kwargs)
+
+    raise NotImplementedError(f"Problem `{co_class}`")
 
 
 def generate_craballoc(
@@ -169,7 +173,7 @@ def generate_tsp(
 
 
 def gen_co_name(co_class, co_class_kwargs):
-    _str = f'{co_class}'
+    _str = f"{co_class}"
     for key, val in co_class_kwargs.items():
-        _str += f'_{key}_{val}'
+        _str += f"_{key}_{val}"
     return _str

@@ -22,7 +22,7 @@ def pp_curve(*, x: ndarray, y: ndarray, num: int = None) -> tuple[ndarray, ndarr
     else:
         # coarsen by finding threshold grid in the pooled sample, that
         #  is equispaced after being transformed by the empirical cdf.
-        xy = np.quantile(xy, np.linspace(0, 1, num=num), interpolation='linear')
+        xy = np.quantile(xy, np.linspace(0, 1, num=num), interpolation="linear")
 
     # add +ve/-ve inf end points to the parameter value sequence
     xy = np.r_[-np.inf, xy, +np.inf]
@@ -41,25 +41,29 @@ def filter_presolved(arr):
     return arr[arr > 1]
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument('path')
-    parser.add_argument('--key', default='num_nodes', choices=['num_nodes', 'lp_iterations', 'solving_time'])
+    parser.add_argument("path")
+    parser.add_argument(
+        "--key",
+        default="num_nodes",
+        choices=["num_nodes", "lp_iterations", "solving_time"],
+    )
     args = parser.parse_args()
 
     fig, ax = plt.subplots(1, 1)
     key = args.key
     path = args.path
-    strong = filter_presolved(pd.read_csv(f'{path}/strong.csv')[key].to_numpy())
+    strong = filter_presolved(pd.read_csv(f"{path}/strong.csv")[key].to_numpy())
 
     for fname in os.listdir(path):
-        if not fname.endswith('.csv'):
+        if not fname.endswith(".csv"):
             continue
 
-        data = filter_presolved(pd.read_csv(f'{path}/' + fname)[key].to_numpy())
+        data = filter_presolved(pd.read_csv(f"{path}/" + fname)[key].to_numpy())
         print(
-            f'{fname}: tot = {len(data)}, median = {np.median(data):.2f}, '
-            f'mean = {np.mean(data):.2f}, std = {np.std(data):.2f}'
+            f"{fname}: tot = {len(data)}, median = {np.median(data):.2f}, "
+            f"mean = {np.mean(data):.2f}, std = {np.std(data):.2f}"
         )
 
         # plt.hist(data, bins=100, log=True)
@@ -73,13 +77,13 @@ if __name__ == '__main__':
     ax.plot((0, 1), (0, 1), c="k", zorder=10, alpha=0.25)
     ax.set_xlim(-0.025, 1.025)
     ax.set_ylim(-0.025, 1.025)
-    ax.set_aspect(1.)
+    ax.set_aspect(1.0)
     ax.set_title(key)
 
     ax.set_xlim(-0.025, 1.025)
     ax.set_ylim(-0.025, 1.025)
-    ax.set_aspect(1.)
+    ax.set_aspect(1.0)
 
     plt.legend()
-    plt.savefig(f'pp_{key}.pdf')
+    plt.savefig(f"pp_{key}.pdf")
     plt.show()

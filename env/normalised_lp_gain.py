@@ -34,9 +34,13 @@ class NormalisedLPGain:
         self.tree.update_tree(model)
 
         # collect node stats from children introduced from previous branching decision
-        prev_node_lb = self.tree.tree.nodes[self.prev_node_id]['lower_bound']
-        prev_node_child_ids = [child for child in self.tree.tree.successors(self.prev_node_id)]
-        prev_node_child_lbs = [self.tree.tree.nodes[child]['lower_bound'] for child in prev_node_child_ids]
+        prev_node_lb = self.tree.tree.nodes[self.prev_node_id]["lower_bound"]
+        prev_node_child_ids = [
+            child for child in self.tree.tree.successors(self.prev_node_id)
+        ]
+        prev_node_child_lbs = [
+            self.tree.tree.nodes[child]["lower_bound"] for child in prev_node_child_ids
+        ]
 
         # calc reward for previous branching decision
         if len(prev_node_child_lbs) > 0:
@@ -49,8 +53,8 @@ class NormalisedLPGain:
             score = 0
 
         # update tree with effect(s) of branching decision
-        self.tree.tree.nodes[self.prev_node_id]['score'] = score
-        self.tree.tree.nodes[self.prev_node_id]['closed_by_agent'] = closed_by_agent
+        self.tree.tree.nodes[self.prev_node_id]["score"] = score
+        self.tree.tree.nodes[self.prev_node_id]["closed_by_agent"] = closed_by_agent
 
         if m.getCurrentNode() is not None:
             # update stats for next step
