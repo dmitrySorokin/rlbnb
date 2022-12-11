@@ -22,20 +22,20 @@ class EcoleBranching(ecole.environment.Branching):
         # reward_function['retro_binary_fathomed'] = RetroBranching()
 
         information_function = {
-            'num_nodes': ecole.reward.NNodes().cumsum(),
-            'lp_iterations': ecole.reward.LpIterations().cumsum(),
-            'solving_time': ecole.reward.SolvingTime().cumsum(),
+            "num_nodes": ecole.reward.NNodes().cumsum(),
+            "lp_iterations": ecole.reward.LpIterations().cumsum(),
+            "solving_time": ecole.reward.SolvingTime().cumsum(),
             # 'primal_integral': ecole.reward.PrimalIntegral().cumsum(),
             # 'dual_integral': ecole.reward.DualIntegral().cumsum(),
             # 'primal_dual_integral': ecole.reward.PrimalDualIntegral(),
         }
 
         gasse_2019_scip_params = {
-            'separating/maxrounds': 0,  # separate (cut) only at root node
-            'presolving/maxrestarts': 0,  # disable solver restarts
-            'limits/time': 20 * 60,  # solver time limit
-            'limits/gap': 3e-4,  # 0.03% relative primal-dual gap (default: 0.0)
-            'limits/nodes': -1,
+            "separating/maxrounds": 0,  # separate (cut) only at root node
+            "presolving/maxrestarts": 0,  # disable solver restarts
+            "limits/time": 20 * 60,  # solver time limit
+            "limits/gap": 3e-4,  # 0.03% relative primal-dual gap (default: 0.0)
+            "limits/nodes": -1,
         }
 
         super(EcoleBranching, self).__init__(
@@ -48,9 +48,14 @@ class EcoleBranching(ecole.environment.Branching):
 
         self.instance_gen = instance_gen
 
+    def base_reset(self, instance: ecole.scip.Model) -> ...:
+        # no need for .copy_orig() since Branching already does that
+        # XXX "... or a `Model` whose problem definition data will be copied."
+        return super().reset(instance)
+
     def reset(self):
         for instance in self.instance_gen:
-            obs, act_set, reward, done, info = super(EcoleBranching, self).reset(instance.copy_orig())
+            obs, act_set, reward, done, info = super().reset(instance.copy_orig())
             if not done:
-                info['instance'] = instance
+                info["instance"] = instance
                 return obs, act_set, reward, done, info

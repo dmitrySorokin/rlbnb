@@ -2,7 +2,8 @@ import ecole
 import glob
 import numpy as np
 from tasks import gen_co_name
-from utils import get_most_recent_checkpoint_foldername
+
+# from utils import get_most_recent_checkpoint_foldername
 import hydra
 from omegaconf import DictConfig
 from agent import DQNAgent, StrongAgent
@@ -12,42 +13,70 @@ from tqdm import trange
 import os
 
 
-@hydra.main(config_path='configs', config_name='config.yaml')
-def evaluate(cfg: DictConfig):
-    files = glob.glob(f'../../../task_instances/{gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)}/*.mps')
-    instances = iter([ecole.scip.Model.from_file(f) for f in files])
+def make_agent(env: EcoleBranching, cfg: DictConfig) -> object:
+    if cfg.name == "strong":
+        return StrongAgent(env)
 
-    env = EcoleBranching(instances)
+    if cfg.name == "dqn":
+        checkpoint = cfg.get("_checkpoint", f"../../../{cfg.checkpoint}")
+        print("eval checkpoint", checkpoint)
+
+        agent = DQNAgent(device="cpu", epsilon=cfg.epsilon)
+        agent.eval()
+        agent.load(checkpoint)
+        return agent
+
+    if cfg.name == "random":
+        assert cfg.epsilon == 1
+        return DQNAgent(device="cpu", epsilon=cfg.epsilon)
+
+    raise NotImplementedError(f"Agent `{cfg.name}`")
+
+
+def evaluate(cfg: DictConfig):
+    # process overrides
+    co_name = gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)
+    basedir = cfg.get("_files", f"../../../task_instances/{co_name}")
+    files = glob.glob(glob.os.path.join(basedir, "*.mps"))
+
+    # get the env and the agent
+    env = EcoleBranching([])
     env.seed(123)
 
-    if cfg.agent.name == 'strong':
-        agent = StrongAgent(env)
-    elif cfg.agent.name == 'dqn':
-        agent = DQNAgent(device='cpu')
-        agent.eval()
-        # checkpoint = get_most_recent_checkpoint_foldername('../../../outputs/02-37-47')
-        print('eval checkpoint', cfg.agent.checkpoint)
-        agent.load(f'../../../{cfg.agent.checkpoint}')
-    elif cfg.agent.name == 'random':
-        agent = DQNAgent(device='cpu')
-        assert cfg.agent.epsilon == 1
-    else:
-        raise ValueError(f'Unknown agent name {cfg.agent.name}')
+    # checkpoint = get_most_recent_checkpoint_foldername('../../../outputs/02-37-47')
+    agent = make_agent(env, cfg.agent)
+    for instance in map(ecole.scip.Model.from_file, files):
+        obs, act_set, _, done, info = env.base_reset(instance)
+        while not done:
+            act = agent.act(obs, act_set)
+            obs, act_set, _, done, info = env.step(act)
 
-    df = pd.DataFrame(columns=['lp_iterations', 'num_nodes', 'solving_time'])
+        yield info
 
-    out_dir = f'../../../results/{gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)}'
+
+@hydra.main(config_path="configs", config_name="config.yaml")
+def main(cfg: DictConfig) -> None:
+    co_name = gen_co_name(cfg.instances.co_class, cfg.instances.co_class_kwargs)
+    out_dir = cfg.get("_output", f"../../../results/{co_name}")
     os.makedirs(out_dir, exist_ok=True)
 
-    for episode in trange(100):
-        obs, act_set, returns, done, info = env.reset()
-        while not done:
-            action = agent.act(obs, act_set, epsilon=cfg.agent.epsilon)
-            obs, act_set, returns, done, info = env.step(action)
+    output = f"{out_dir}/{cfg.agent.name}.csv"
+    df = pd.DataFrame(columns=["lp_iterations", "num_nodes", "solving_time"])
+    for _, info in zip(trange(100), evaluate(cfg)):
         df = df.append(info, ignore_index=True)
-        df.to_csv(f'{out_dir}/{cfg.agent.name}.csv')
-        print(np.median(df['num_nodes']), np.std(df['num_nodes']))
+        df.to_csv(output)
+        print(np.median(df["num_nodes"]), np.std(df["num_nodes"]))
 
 
-if __name__ == '__main__':
-    evaluate()
+if __name__ == "__main__":
+    main()
+
+"""bash
+python eval.py --config-name="combinatorial_auction" \
+   ++agent.name="strong" ++output="foo" \
+   ++_files="/Users/ivannazarov/Github/repos_with_rl/copt/rlbnb/task_instances/combinatorial_auction_n_items_100_n_bids_500" \
+   ++agent._checkpoint="/Users/ivannazarov/Github/repos_with_rl/copt/rlbnb/outputs/2022-12-09/01-46-41/checkpoint_999.pkl" \
+   ++_output="/Users/ivannazarov/Github/repos_with_rl/copt/rlbnb/"
+
+python main.py ++experiment.device="cpu" ++experiment.reward_function="lp-gains"
+"""
