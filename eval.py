@@ -34,7 +34,8 @@ def evaluate(cfg: DictConfig):
         agent.load(f'../../../{cfg.agent.checkpoint}')
     elif cfg.agent.name == 'il':
         agent = ImitationAgent(device=cfg.experiment.device,
-                               observation_format=observation_format)
+                               observation_format=observation_format,
+                               encode_possible_actions=cfg.learner.action_mask)
         agent.eval()
         print('eval checkpoint', cfg.experiment.checkpoint)
         agent.load(f'{cfg.experiment.path_to_save}/checkpoint_{cfg.experiment.checkpoint}.pkl')
