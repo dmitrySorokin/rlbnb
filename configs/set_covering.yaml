@@ -15,5 +15,8 @@ experiment:
 
 agent:
   name: 'dqn'
+  suffix: '_atoms'
   epsilon: 0.1
-  checkpoint: 'outputs/set_covering/checkpoint_100045.pkl'
+  # checkpoint: 'outputs/old/set_covering/checkpoint_100045.pkl'
+  checkpoint: 'outputs/set_covering/checkpoint_100039.pkl'
+

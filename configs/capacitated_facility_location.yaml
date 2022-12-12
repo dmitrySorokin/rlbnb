@@ -15,5 +15,8 @@ experiment:
 
 agent:
   name: 'dqn'
+  suffix: '_atoms'
   epsilon: 0.1
-  checkpoint: 'outputs/capacitated_facility_location/checkpoint_100003.pkl'
+  # checkpoint: 'outputs/old/capacitated_facility_location/checkpoint_100003.pkl'
+  checkpoint: 'outputs/capacitated_facility_location/checkpoint_100073.pkl'
+

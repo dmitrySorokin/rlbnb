@@ -14,5 +14,7 @@ experiment:
 
 agent:
   name: 'dqn'
+  suffix: '_atoms'
   epsilon: 0.1
-  checkpoint: 'outputs/maximum_independent_set/checkpoint_100093.pkl'
+  # checkpoint: 'outputs/old/maximum_independent_set/checkpoint_100093.pkl'
+  checkpoint: 'outputs/maximum_independent_set/checkpoint_100090.pkl'
