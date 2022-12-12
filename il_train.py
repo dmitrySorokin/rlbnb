@@ -31,7 +31,8 @@ def run(cfg: DictConfig):
     agent = ImitationAgent(device=cfg.experiment.device,
                            observation_format=cfg.learner.observation_format,
                            target=cfg.learner.imitation_target,
-                           loss_function=cfg.learner.loss_function)
+                           loss_function=cfg.learner.loss_function,
+                           encode_possible_actions=cfg.learner.action_mask)
     agent.train()
     print('Initialised imitation agent.')
     path_to_model_save = cfg.experiment.path_to_save

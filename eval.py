@@ -37,7 +37,8 @@ def evaluate(cfg: DictConfig):
         agent.load(f'../../../{cfg.agent.checkpoint}')
     elif cfg.agent.name == 'il':
         agent = ImitationAgent(device=cfg.experiment.device,
-                               observation_format=observation_format)
+                               observation_format=observation_format,
+                               encode_possible_actions=cfg.learner.action_mask)
         agent.eval()
         print('eval checkpoint', cfg.experiment.checkpoint)
         agent.load(f'{cfg.experiment.path_to_save}/checkpoint_{cfg.experiment.checkpoint}.pkl')
@@ -50,7 +51,7 @@ def evaluate(cfg: DictConfig):
     df = pd.DataFrame(columns=['lp_iterations', 'num_nodes', 'solving_time'])
 
     for episode in trange(1000):
-        obs, act_set, returns, done, info = env.eval_reset()
+        obs, act_set, returns, done, info = env.reset()
         if not done:
             obs = make_tripartite(env, obs, act_set)
         while not done:
