@@ -2,10 +2,9 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 import torch_geometric
-import numpy as np
 from utils import pad_tensor
-from torch_geometric.data import Batch
-import ecole
+from env import make_tripartite
+from utils import UnpackedBipartite, UnpackedTripartite
 
 
 class BipartiteGraphConvolution(torch_geometric.nn.MessagePassing):
@@ -440,53 +439,12 @@ class TripartiteGCN(torch.nn.Module):
         return head_output
 
 
-class DQNAgent:
-    def __init__(self, device):
-        self.net = BipartiteGCN(device=device, var_nfeats=24)
-        self.opt = torch.optim.Adam(self.net.parameters())
-
-    def act(self, obs, action_set, epsilon):
-        with torch.no_grad():
-            preds = self.net(obs)[action_set.astype('int32')]
-
-        # single observation
-        if np.random.rand() < epsilon:
-            action = np.random.choice(action_set)
-        else:
-            action_idx = torch.argmax(preds)
-            action = action_set[action_idx.item()]
-        return action
-
-    def update(self, obs_batch, act_batch, ret_batch):
-        self.opt.zero_grad()
-        loss = 0
-        # TODO use torch_geometric.data.Batch
-        for obs, act, ret in zip(obs_batch, act_batch, ret_batch):
-            pred = self.net(obs)[act]
-            loss += ((pred - ret) ** 2) / len(obs_batch)
-        loss.backward()
-        self.opt.step()
-        return loss.detach().cpu().item()
-
-    def save(self, path, epoch_id):
-        torch.save(self.net.state_dict(), path + f'/checkpoint_{epoch_id}.pkl')
-
-    def load(self, path):
-        self.net.load_state_dict(
-            torch.load(path, map_location=self.net.device)
-        )
-
-    def train(self):
-        self.net.train()
-
-    def eval(self):
-        self.net.eval()
-
-
 class ImitationAgent:
     def __init__(self, device, observation_format='tripartite', target='expert_actions', loss_function='cross_entropy',
                  encode_possible_actions=True):
+        self.device = device
         assert observation_format in ['bipartite', 'tripartite']
+        self.observation_format = observation_format
         if observation_format == 'bipartite':
             self.net = BipartiteGCN(device=device,
                                     encode_possible_actions=encode_possible_actions)
@@ -505,7 +463,13 @@ class ImitationAgent:
 
         self.device = device
 
-    def act(self, obs, action_set):
+    def act(self, obs, action_set, deterministic, env):
+        obs = make_tripartite(env, obs, action_set)
+        if self.observation_format == 'bipartite':
+            obs = UnpackedBipartite(obs, action_set, self.device)
+        elif self.observation_format == 'tripartite':
+            obs = UnpackedTripartite(obs, self.device)
+
         with torch.no_grad():
             preds = self.net(obs)
         action_idx = torch.argmax(preds)
@@ -550,30 +514,6 @@ class ImitationAgent:
 
     def eval(self):
         self.net.eval()
-
-
-class StrongAgent:
-    def __init__(self, env):
-        self.strong_branching_function = ecole.observation.StrongBranchingScores()
-        self.env = env
-
-    def before_reset(self, model):
-        self.strong_branching_function.before_reset(model)
-
-    def act(self, obs, action_set, epsilon):
-        scores = self.strong_branching_function.extract(self.env.model, False)[action_set]
-        return action_set[np.argmax(scores)]
-
-    def eval(self):
-        pass
-
-
-class RandomAgent:
-    def __init__(self, seed):
-        np.random.seed(seed)
-
-    def act(self, obs, action_set):
-        return np.random.choice(action_set, 1)[0]
 
 
 class MeanSquaredError(nn.Module):
