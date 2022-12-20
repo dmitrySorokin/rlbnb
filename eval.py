@@ -6,10 +6,9 @@ from utils import get_most_recent_checkpoint_foldername, UnpackedTripartite, Unp
 import hydra
 from omegaconf import DictConfig
 from agent import DQNAgent, ImitationAgent, StrongAgent, RandomAgent
-from env import EcoleBranching
+from env import EcoleBranching, make_tripartite
 import pandas as pd
 from tqdm import trange
-from obs import make_tripartite
 
 
 @hydra.main(config_path='configs', config_name='config.yaml')
@@ -49,16 +48,8 @@ def evaluate(cfg: DictConfig):
 
     for episode in trange(100):
         obs, act_set, returns, done, info = env.reset()
-        if not done:
-            obs = make_tripartite(env, obs, act_set)
         while not done:
-
-            if observation_format == 'bipartite':
-                obs = UnpackedBipartite(obs, act_set, cfg.experiment.device)
-            elif observation_format == 'tripartite':
-                obs = UnpackedTripartite(obs, cfg.experiment.device)
-
-            action = agent.act(obs, act_set)
+            action = agent.act(obs, act_set, True, env)
             obs, act_set, returns, done, info = env.step(action)
             if not done:
                 obs = make_tripartite(env, obs, act_set)
