@@ -25,21 +25,19 @@ def run(cfg: DictConfig):
         cfg.experiment['seed'] = random.randint(0, 10000)
     seed_stochastic_modules_globally(cfg.experiment.seed)
 
-    writer = SummaryWriter(cfg.experiment.path_to_log)
+    writer = SummaryWriter(os.getcwd())
 
     # initialise imitation agent
     agent = ImitationAgent(device=cfg.experiment.device,
-                           observation_format=cfg.learner.observation_format,
-                           target=cfg.learner.imitation_target,
-                           loss_function=cfg.learner.loss_function,
-                           encode_possible_actions=cfg.learner.action_mask)
+                           observation_format=cfg.agent.observation_format,
+                           target=cfg.experiment.imitation_target,
+                           loss_function=cfg.experiment.loss_function,
+                           encode_possible_actions=cfg.agent.action_mask)
     agent.train()
     print('Initialised imitation agent.')
-    path_to_model_save = cfg.experiment.path_to_save
-    pathlib.Path(path_to_model_save).mkdir(parents=True, exist_ok=True)
 
     # get paths to labelled training and validation data
-    path = cfg.experiment.path_to_load_imitation_data
+    path = '../../../' + cfg.experiment.path_to_load_imitation_data
 
     print(f'Loading imitation data from {path}...')
     if not os.path.isdir(path):
@@ -73,12 +71,12 @@ def run(cfg: DictConfig):
             val_iters += 1
         val_loss /= val_iters
 
-        if epoch % cfg.learner.epoch_log_frequency == 0:
+        if epoch % cfg.experiment.epoch_log_frequency == 0:
             writer.add_scalar('epoch/train_loss', train_loss, epoch)
             writer.add_scalar('epoch/val_loss', val_loss, epoch)
 
-        if epoch % cfg.learner.checkpoint_log_frequency == 0:
-            agent.save(path_to_model_save, epoch)
+        if epoch % cfg.experiment.checkpoint_log_frequency == 0:
+            agent.save(os.getcwd(), epoch)
 
         print("Epoch: %d\tTrain loss: %.12f\tVal loss: %.12f" % (epoch, train_loss, val_loss))
 

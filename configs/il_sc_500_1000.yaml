@@ -1,19 +1,20 @@
 instances:
-  co_class: 'tsp'
+  co_class: 'set_covering'
   co_class_kwargs:
-    'n_nodes': 20
+    'n_rows': 500
+    'n_cols': 1000
 
 experiment:
   seed: 0
   device: 'cpu'
-  path_to_load_imitation_data: 'outputs/tsp_20/dataset/'
+  path_to_load_imitation_data: 'outputs/sc_500_1000/dataset/'
   branching: 'explore_then_strong_branch' # 'pure_strong_branch' 'explore_then_strong_branch'
   max_steps: null
   imitation_target: 'expert_actions' # 'expert_scores' 'expert_actions'
   loss_function: 'cross_entropy' # 'cross_entropy', 'mse'
   lr: 0.0001
   num_samples: 100000
-  num_epochs: 400
+  num_epochs: 200
   epoch_log_frequency: 1
   checkpoint_log_frequency: 1
 
@@ -22,4 +23,4 @@ agent:
   observation_format: 'tripartite' # 'bipartite', 'tripartite'
   name: 'il'
   suffix: '_tripartite'
-  checkpoint: 'outputs/tripartite_tsp_20/models/checkpoint_280.pkl'
+  checkpoint: 'outputs/tripartite_sc_500_1000/models/checkpoint_101.pkl'
