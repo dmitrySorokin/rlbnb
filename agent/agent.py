@@ -193,20 +193,26 @@ class DQNAgent:
         action = action_set[action_idx.item()]
         return action, mask
 
-    def update(self, obs_batch, act_batch, ret_batch, mask_batch):
+    def mse(self, obs, act, ret, mask):
+        pred = self.net(obs, mask)[act]
+        return (pred - ret) ** 2
+
+    def update(self, batch, weights):
+        errors = []
         self.opt.zero_grad()
         loss = 0
         norm_coef = 0
         # TODO use torch_geometric.data.Batch
-        for obs, act, ret, mask in zip(obs_batch, act_batch, ret_batch, mask_batch):
-            pred = self.net(obs, mask)[act]
+        for (obs, act, ret, mask), weight in zip(batch, weights):
             coef = np.abs(ret)
-            loss += ((pred - ret) ** 2) * coef
+            error = self.mse(obs, act, ret, mask)
+            errors.append(error.detach().cpu().numpy())
+            loss += error * coef * weight
             norm_coef += coef
-        loss /= len(obs_batch) * norm_coef
+        loss /= len(batch) * norm_coef
         loss.backward()
         self.opt.step()
-        return loss.detach().cpu().item()
+        return loss.detach().cpu().item(), errors
 
     def save(self, path, epoch_id):
         torch.save(self.net.state_dict(), path + f'/checkpoint_{epoch_id}.pkl')

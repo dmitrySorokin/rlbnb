@@ -3,13 +3,13 @@ import numpy as np
 from omegaconf import DictConfig, OmegaConf
 from env import EcoleBranching
 from tasks import make_instances
-from agent import DQNAgent, StrongAgent, ReplayBuffer
+from agent import DQNAgent, StrongAgent, PrioritizedReplayBuffer
 from tqdm import tqdm
 import os
 from tensorboardX import SummaryWriter
 
 
-def rollout(env, agent, replay_buffer, max_tree_size=100):
+def rollout(env, agent, replay_buffer, max_tree_size=200):
     obs, act_set, returns, done, info = env.reset()
     traj_obs, traj_act, traj_mask = [], [], []
 
@@ -28,7 +28,10 @@ def rollout(env, agent, replay_buffer, max_tree_size=100):
     traj_ret = np.asarray(returns)[ids]
     traj_mask = np.asarray(traj_mask)[ids]
     for obs, act, ret, mask in zip(traj_obs, traj_act, traj_ret, traj_mask):
-        replay_buffer.add_transition(obs, act, ret, mask)
+        replay_buffer.add_transition(
+            agent.mse(obs, act, ret, mask).detach().cpu().numpy(),
+            (obs, act, ret, mask)
+        )
 
     return len(ids), info
 
@@ -43,7 +46,7 @@ def main(cfg: DictConfig):
     agent = DQNAgent(device=cfg.experiment.device)
     agent.train()
 
-    replay_buffer = ReplayBuffer(
+    replay_buffer = PrioritizedReplayBuffer(
         max_size=cfg.experiment.buffer_max_size,
         start_size=cfg.experiment.buffer_start_size
     )
@@ -65,8 +68,10 @@ def main(cfg: DictConfig):
         print(episode, info['num_nodes'])
         episode += 1
         for i in range(num_obs):
-            obs, act, ret, mask = replay_buffer.sample()
-            loss = agent.update(obs, act, ret, mask)
+            batch, idxs, weight = replay_buffer.sample()
+            loss, errors = agent.update(batch, weight)
+            for idx, error in zip(idxs, errors):
+                replay_buffer.update(idx, error)
             writer.add_scalar('update/loss', loss, update)
             update += 1
             # epsilon = max(epsilon_min, epsilon * epsilon_decay)
