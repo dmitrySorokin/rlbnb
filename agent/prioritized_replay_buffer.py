@@ -4,7 +4,7 @@ from .sum_tree import SumTree
 
 
 class PrioritizedReplayBuffer:
-    e = 0.001
+    e = 0.0001
     a = 0.6
     beta = 0.4
     beta_increment_per_sampling = 0.001
