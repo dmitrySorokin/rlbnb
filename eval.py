@@ -9,7 +9,8 @@ from env import EcoleBranching
 
 import os
 
-from tpool import threadpool_unordered_map as tp_run
+from multiprocessing.pool import ThreadPool
+
 from typing import Iterable, Callable, NamedTuple
 
 from functools import partial
@@ -143,7 +144,9 @@ def main(
             jobs.extend(Job(f.removeprefix(prefix), f, seed, name) for f in files)
 
     if n_workers > 1:
-        yield from tp_run(n_workers, partial(evaluate_one, branchers), jobs)
+        with ThreadPool(n_workers) as p:
+            # we set chunksize=1
+            yield from p.imap_unordered(partial(evaluate_one, branchers), jobs, 1)
 
     else:
         for j in jobs:
