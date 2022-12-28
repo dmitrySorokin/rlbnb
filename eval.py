@@ -16,6 +16,7 @@ from typing import Iterable, Callable, NamedTuple
 from functools import partial
 from numpy.random import default_rng
 from csv import DictWriter
+from time import perf_counter
 
 
 def get_randombrancher(seed: int = None) -> Callable:
@@ -93,12 +94,14 @@ def evaluate_one(
 
     pick = branchers[j.name](env)
 
-    n_steps = 0
+    n_steps, f_wtime = 0, perf_counter()
     obs, act_set, _, fin, nfo = env.reset_basic(j.instance)  # XXX `.reset` is too smart
     while not fin and not stop():
         act = pick(obs, act_set, deterministic=True)
         obs, act_set, _, fin, nfo = env.step(act)
         n_steps += 1
+
+    f_wtime = perf_counter() - f_wtime
 
     # Manually check if SCIP encountered a sigint
     m = env.model.as_pyscipopt()
@@ -117,6 +120,7 @@ def evaluate_one(
         f_gap=m.getGap(),
         f_soltime=m.getSolvingTime(),
         s_status=m.getStatus(),
+        f_walltime=f_wtime,
     )
 
     # make sure to report the legacy fields as well
@@ -215,6 +219,7 @@ def evaluate(cfg: DictConfig):
                 "f_gap",
                 "f_soltime",
                 "s_status",
+                "f_walltime",
             ],
         )
 
