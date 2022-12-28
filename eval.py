@@ -54,11 +54,10 @@ def get_strongbrancher() -> Callable:
 
 def get_dqnbrancher(ckpt: str, device: str = "cpu") -> Callable:
     """Load a DQN agent from a checkpoint and return a brancher"""
+    assert os.path.isfile(ckpt)
 
     agent = DQNAgent(device=device)
-    if ckpt is not None:
-        assert os.path.isfile(ckpt)
-        agent.load(ckpt)
+    agent.load(ckpt)
 
     def _dqnbrancher(env: ecole.environment.Branching) -> Callable:
         """Get a dqn-based branching policy for env"""
@@ -87,18 +86,16 @@ def evaluate_one(
     *,
     stop: Callable[[], bool] = (lambda: False),
 ) -> dict:
-    # due to mitluthreaded evaluation, we switch clock type to wall
-    # XXX 1: CPU user seconds, 2: wall clock time}
-    env = EcoleBranching(None, overrides={"timing/clocktype": 2})
-    env.seed(int(j.seed))
+    env = EcoleBranching(None)
+    env.seed(j.seed)
 
     pick = branchers[j.name](env)
 
     n_steps, f_wtime = 0, perf_counter()
-    obs, act_set, _, fin, nfo = env.reset_basic(j.instance)  # XXX `.reset` is too smart
-    while not fin and not stop():
+    obs, act_set, _, done, _ = env.reset_basic(j.instance)  # XXX `.reset` is too smart
+    while not done and not stop():
         act = pick(obs, act_set, deterministic=True)
-        obs, act_set, _, fin, nfo = env.step(act)
+        obs, act_set, _, done, _ = env.step(act)
         n_steps += 1
 
     f_wtime = perf_counter() - f_wtime
@@ -109,7 +106,7 @@ def evaluate_one(
         raise KeyboardInterrupt from None
 
     # collect the stats manually (extended fields)
-    out = dict(
+    return dict(
         name=j.name,
         seed=j.seed,
         instance=j.alias,
@@ -118,13 +115,10 @@ def evaluate_one(
         n_nodes=m.getNNodes(),
         n_lpiter=m.getNLPIterations(),
         f_gap=m.getGap(),
-        f_soltime=m.getSolvingTime(),
+        f_soltime=m.getSolvingTime(),  # XXX meaningless with n_jobs > 1
         s_status=m.getStatus(),
         f_walltime=f_wtime,
     )
-
-    # make sure to report the legacy fields as well
-    return {**nfo, **out}
 
 
 def main(
@@ -147,14 +141,9 @@ def main(
         for name in branchers:
             jobs.extend(Job(f.removeprefix(prefix), f, seed, name) for f in files)
 
-    if n_workers > 1:
-        with ThreadPool(n_workers) as p:
-            # we set chunksize=1
-            yield from p.imap_unordered(partial(evaluate_one, branchers), jobs, 1)
-
-    else:
-        for j in jobs:
-            yield evaluate_one(branchers, j)
+    with ThreadPool(n_workers) as p:
+        fn = partial(evaluate_one, branchers)
+        yield from p.imap_unordered(fn, jobs, chunksize=1)
 
 
 @hydra.main(version_base="1.2", config_path="configs", config_name="config.yaml")
@@ -174,11 +163,8 @@ def evaluate(cfg: DictConfig):
         brancher = get_strongbrancher()
 
     elif cfg.agent.name == "dqn":
-        ckpt = None  # allow for untrained dqn
-        if "checkpoint" in cfg.agent:
-            ckpt = os.path.abspath(cfg.agent.checkpoint)
-
         device = cfg.get("device", "cpu")
+        ckpt = os.path.abspath(cfg.agent.checkpoint)
 
         print(f"Loading `{ckpt}` to {device}")
         brancher = get_dqnbrancher(ckpt, device)
@@ -203,12 +189,7 @@ def evaluate(cfg: DictConfig):
         writer = DictWriter(
             f,
             fieldnames=[
-                # legacy fields
-                "",
-                "lp_iterations",
-                "num_nodes",
-                "solving_time",
-                # extended fields
+                "num",
                 "name",
                 "seed",
                 "instance",
@@ -227,19 +208,17 @@ def evaluate(cfg: DictConfig):
 
         writer.writeheader()
         for j, result in enumerate(it):
-            writer.writerow({"": j, **result})
+            writer.writerow({"num": j, **result})
             f.flush()
 
             if (j % 25) == 0:
                 print(
-                    "\n"
-                    "      name         seed     status   "
-                    "   steps    nodes      lps    soltime  instance"
+                    "\n      name         seed     status   "
+                    "   steps    nodes      lps   walltime  instance"
                 )
             print(
-                "{j:>5d} {name:<12} {seed:<8} {s_status:<8} "
-                "{n_interactions:>8} {n_nodes:>8} "
-                "{n_lps:>8} {f_soltime:>8.2f}s.  {instance}"
+                "{j:>5d} {name:<12} {seed:<8} {s_status:<8} {n_interactions:>8}"
+                " {n_nodes:>8} {n_lps:>8} {f_walltime:>8.2f}s.  {instance}"
                 "".format(j=j, **result)
             )
 

@@ -4,7 +4,7 @@ import ecole
 
 
 class EcoleBranching(ecole.environment.Branching):
-    def __init__(self, instance_gen, *, overrides=None):
+    def __init__(self, instance_gen):
         # init default rewards
         reward_function = RetroBranching()
 
@@ -27,8 +27,6 @@ class EcoleBranching(ecole.environment.Branching):
             # 'limits/gap': 3e-4,  # 0.03% relative primal-dual gap (default: 0.0)
             # 'limits/nodes': -1,
         }
-        if isinstance(overrides, dict):
-            gasse_2019_scip_params.update(overrides)
 
         super(EcoleBranching, self).__init__(
             observation_function=NodeBipariteWith24VariableFeatures(),
