@@ -4,8 +4,8 @@ import numpy as np
 from tasks import gen_co_name
 import hydra
 from omegaconf import DictConfig
-from agent import DQNAgent
-from env import EcoleBranching
+from agent import DQNAgent, ImitationAgent
+from env import EcoleBranching, NodeBipariteWith24VariableFeatures
 
 import os
 
@@ -73,6 +73,29 @@ def get_dqnbrancher(ckpt: str, device: str = "cpu") -> Callable:
     return _dqnbrancher
 
 
+def get_ilbrancher(cfg, ckpt: str, device: str = "cpu") -> Callable:
+    """Load a IL agent from a checkpoint and return a brancher"""
+    assert os.path.isfile(ckpt)
+
+    agent = ImitationAgent(device=device,
+                           observation_format=cfg.agent.observation_format,
+                           encode_possible_actions=cfg.agent.action_mask)
+    agent.load(ckpt)
+
+    def _ilbrancher(env: ecole.environment.Branching) -> Callable:
+        """Get a il-based branching policy for env"""
+
+        def _do_branch(obs: ..., act_set: ..., deterministic: bool = True) -> int:
+            """Decide on the branching variable with a graph DQN"""
+            agent.eval()
+            act, _ = agent.act(obs, act_set, deterministic=deterministic, env=env)
+            return act
+
+        return _do_branch
+
+    return _ilbrancher
+
+
 class Job(NamedTuple):
     alias: str
     instance: str
@@ -86,7 +109,12 @@ def evaluate_one(
     *,
     stop: Callable[[], bool] = (lambda: False),
 ) -> dict:
-    env = EcoleBranching(None)
+    if j.name == "il":
+        obs_function = ecole.observation.NodeBipartite()
+    else:
+        obs_function = NodeBipariteWith24VariableFeatures()
+
+    env = EcoleBranching(None, obs_function)
     env.seed(j.seed)
 
     pick = branchers[j.name](env)
@@ -172,6 +200,13 @@ def evaluate(cfg: DictConfig):
     elif cfg.agent.name == "random":
         brancher = get_randombrancher(seed=None)  # XXX seed is deliberately not fixed
 
+    elif cfg.agent.name == "il":
+        device = cfg.get("device", "cpu")
+        ckpt = os.path.abspath(cfg.agent.checkpoint)
+
+        print(f"Loading `{ckpt}` to {device}")
+        brancher = get_ilbrancher(cfg, ckpt, device)
+
     else:
         raise NotImplementedError(f"Unknown agent name {cfg.agent.name}")
 
@@ -195,7 +230,7 @@ def evaluate(cfg: DictConfig):
                 "instance",
                 "n_interactions",
                 "n_lps",
-                "n_nodes",
+                "num_nodes",
                 "n_lpiter",
                 "f_gap",
                 "f_soltime",

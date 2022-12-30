@@ -2,8 +2,6 @@ import torch
 from torch import nn
 import torch_geometric
 import numpy as np
-from torch_geometric.data import Batch
-import ecole
 
 
 class BipartiteGraphConvolution(torch_geometric.nn.MessagePassing):
@@ -221,25 +219,3 @@ class DQNAgent:
 
     def eval(self):
         self.net.eval()
-
-
-class StrongAgent:
-    def __init__(self, env):
-        self.strong_branching_function = ecole.observation.StrongBranchingScores()
-        self.env = env
-
-    def before_reset(self, model):
-        self.strong_branching_function.before_reset(model)
-
-    def act(self, obs, action_set, deterministic):
-        scores = self.strong_branching_function.extract(self.env.model, False)[action_set]
-        return action_set[np.argmax(scores)], None
-
-    def eval(self):
-        pass
-
-
-class RandomAgent:
-    def act(self, obs, action_set, deterministic):
-        action = np.random.choice(action_set)
-        return action, None

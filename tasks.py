@@ -8,19 +8,23 @@ import pyscipopt as scip
 from omegaconf import DictConfig
 
 
-def make_instances(cfg: DictConfig):
+def make_instances(cfg: DictConfig, seed=0):
+    if seed is not None:
+        rng = ecole.core.RandomGenerator(seed)
+    else:
+        rng = None
     if cfg.instances.co_class == 'set_covering':
-        instances = ecole.instance.SetCoverGenerator(**cfg.instances.co_class_kwargs)
+        instances = ecole.instance.SetCoverGenerator(rng=rng, **cfg.instances.co_class_kwargs)
     elif cfg.instances.co_class == 'combinatorial_auction':
-        instances = ecole.instance.CombinatorialAuctionGenerator(**cfg.instances.co_class_kwargs)
+        instances = ecole.instance.CombinatorialAuctionGenerator(rng=rng, **cfg.instances.co_class_kwargs)
     elif cfg.instances.co_class == 'capacitated_facility_location':
-        instances = ecole.instance.CapacitatedFacilityLocationGenerator(**cfg.instances.co_class_kwargs)
+        instances = ecole.instance.CapacitatedFacilityLocationGenerator(rng=rng, **cfg.instances.co_class_kwargs)
     elif cfg.instances.co_class == 'maximum_independent_set':
-        instances = ecole.instance.IndependentSetGenerator(**cfg.instances.co_class_kwargs)
+        instances = ecole.instance.IndependentSetGenerator(rng=rng, **cfg.instances.co_class_kwargs)
     elif cfg.instances.co_class == 'crabs':
-        instances = generate_craballoc(**cfg.instances.co_class_kwargs)
+        instances = generate_craballoc(seed=seed, **cfg.instances.co_class_kwargs)
     elif cfg.instances.co_class == 'tsp':
-        instances = generate_tsp(**cfg.instances.co_class_kwargs)
+        instances = generate_tsp(seed=seed, **cfg.instances.co_class_kwargs)
     else:
         raise Exception(f'Unrecognised co_class {cfg.instances.co_class}')
 

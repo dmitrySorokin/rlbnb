@@ -1,0 +1,26 @@
+instances:
+  co_class: 'combinatorial_auction'
+  co_class_kwargs:
+    'n_items': 100
+    'n_bids': 500
+
+experiment:
+  seed: 0
+  device: 'cpu'
+  path_to_load_imitation_data: 'outputs/cauc_100_500/dataset/'
+  branching: 'explore_then_strong_branch' # 'pure_strong_branch' 'explore_then_strong_branch'
+  max_steps: null
+  imitation_target: 'expert_actions' # 'expert_scores' 'expert_actions'
+  loss_function: 'cross_entropy' # 'cross_entropy', 'mse'
+  lr: 0.0001
+  num_samples: 100000
+  num_epochs: 200
+  epoch_log_frequency: 1
+  checkpoint_log_frequency: 1
+
+agent:
+  action_mask: True
+  observation_format: 'tripartite' # 'bipartite', 'tripartite'
+  name: 'il'
+  suffix: '_tripartite'
+  checkpoint: 'outputs/tripartite_cauc_100_500/models/checkpoint_84.pkl'
