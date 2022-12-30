@@ -4,7 +4,7 @@ import ecole
 
 
 class EcoleBranching(ecole.environment.Branching):
-    def __init__(self, instance_gen, obs_function=None, scip_params=None):
+    def __init__(self, instance_gen, obs_function=None):
         # init default rewards
         reward_function = RetroBranching()
 
@@ -29,7 +29,7 @@ class EcoleBranching(ecole.environment.Branching):
         }
 
         if obs_function is None:
-            obs_function = ecole.observation.NodeBipartite()
+            obs_function = ecole.observation.NodeBipariteWith24VariableFeatures()
 
         super(EcoleBranching, self).__init__(
             observation_function=obs_function,

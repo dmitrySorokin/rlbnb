@@ -176,7 +176,7 @@ class DQNAgent:
         self.net = BipartiteGCN(device=device, var_nfeats=24, n_heads=50)
         self.opt = torch.optim.Adam(self.net.parameters())
 
-    def act(self, obs, action_set, deterministic, env):
+    def act(self, obs, action_set, deterministic):
         if deterministic:
             mask = np.ones(len(self.net.heads))
         else:
