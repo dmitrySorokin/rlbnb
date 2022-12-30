@@ -27,8 +27,6 @@ class EcoleBranching(ecole.environment.Branching):
             # 'limits/gap': 3e-4,  # 0.03% relative primal-dual gap (default: 0.0)
             # 'limits/nodes': -1,
         }
-        if type(scip_params) == dict:
-            gasse_2019_scip_params.update(scip_params)
 
         if obs_function is None:
             obs_function = ecole.observation.NodeBipartite()

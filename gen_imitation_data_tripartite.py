@@ -1,4 +1,4 @@
-from tasks import generate_tsp, generate_craballoc
+from tasks import make_instances
 from utils import seed_stochastic_modules_globally
 from env import make_tripartite, ExploreThenStrongBranch, PureStrongBranch
 import ecole
@@ -26,35 +26,10 @@ scip_params = {
     # 'limits/nodes': -1,
 }
 
-def run_sampler(path, sample_n_queue, co_class, co_class_kwargs, branching, max_steps=None, seed=0):
-    '''
-    Args:
-        branching (str): Branching scheme to use. Must be one of 'explore_then_strong_branch',
-            'pure_strong_branch'
-        max_steps (None, int): If not None, will terminate episode after max_steps.
-    '''
-    # N.B. Need to init instances and env here since ecole objects are not
-    # serialisable and ray requires all args passed to it to be serialisable
-    if co_class == 'set_covering':
-        instance_gen = ecole.instance.SetCoverGenerator(rng=ecole.core.RandomGenerator(seed),
-                                                        **co_class_kwargs)
-    elif co_class == 'combinatorial_auction':
-        instance_gen = ecole.instance.CombinatorialAuctionGenerator(rng=ecole.core.RandomGenerator(seed),
-                                                                    **co_class_kwargs)
-    elif co_class == 'capacitated_facility_location':
-        instance_gen = ecole.instance.CapacitatedFacilityLocationGenerator(rng=ecole.core.RandomGenerator(seed),
-                                                                           **co_class_kwargs)
-    elif co_class == 'maximum_independent_set':
-        instance_gen = ecole.instance.IndependentSetGenerator(rng=ecole.core.RandomGenerator(seed),
-                                                              **co_class_kwargs)
-    elif co_class == 'crabs':
-        instance_gen = generate_craballoc(**co_class_kwargs)
-
-    elif co_class == 'tsp':
-        instance_gen = generate_tsp(**co_class_kwargs)
-
-    else:
-        raise Exception(f'Unrecognised co_class {co_class}')
+def run_sampler(cfg, path, sample_n_queue, seed=0):
+    instance_gen = make_instances(cfg, seed=seed)
+    branching = cfg.experiment.branching
+    max_steps = cfg.experiment.max_steps
 
     if branching == 'explore_then_strong_branch':
         env = ecole.environment.Branching(observation_function=(ExploreThenStrongBranch(expert_probability=0.3),
@@ -139,12 +114,7 @@ def run(cfg: DictConfig):
 
     threads = list()
     for i in range(n_parallel_process):
-        process = Thread(target=run_sampler, args=(path, sample_n_queue,
-                                                   cfg.instances.co_class,
-                                                   cfg.instances.co_class_kwargs,
-                                                   cfg.experiment.branching,
-                                                   cfg.experiment.max_steps,
-                                                   i))
+        process = Thread(target=run_sampler, args=(path, sample_n_queue, cfg, i))
         process.start()
         threads.append(process)
 
