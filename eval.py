@@ -140,7 +140,7 @@ def evaluate_one(
         instance=j.alias,
         n_interactions=n_steps,
         n_lps=m.getNLPs(),
-        n_nodes=m.getNNodes(),
+        num_nodes=m.getNNodes(),
         n_lpiter=m.getNLPIterations(),
         f_gap=m.getGap(),
         f_soltime=m.getSolvingTime(),  # XXX meaningless with n_jobs > 1
@@ -253,7 +253,7 @@ def evaluate(cfg: DictConfig):
                 )
             print(
                 "{j:>5d} {name:<12} {seed:<8} {s_status:<8} {n_interactions:>8}"
-                " {n_nodes:>8} {n_lps:>8} {f_walltime:>8.2f}s.  {instance}"
+                " {num_nodes:>8} {n_lps:>8} {f_walltime:>8.2f}s.  {instance}"
                 "".format(j=j, **result)
             )
 
