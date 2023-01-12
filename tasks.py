@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import ecole
 from ecole.scip import Model
@@ -6,6 +7,7 @@ from craballoc.bnb.fixsched import setup
 from pyscipopt import quicksum
 import pyscipopt as scip
 from omegaconf import DictConfig
+from env import EcoleBranching
 
 
 def make_instances(cfg: DictConfig, seed=0):
@@ -29,6 +31,21 @@ def make_instances(cfg: DictConfig, seed=0):
         raise Exception(f'Unrecognised co_class {cfg.instances.co_class}')
 
     return instances
+
+
+def make_instances_from_folder(cfg: DictConfig, seed=0):
+    path_to_data = cfg.experiment.train_instances
+    path_to_data = os.path.join("../../../", path_to_data)
+    instances = [os.path.join(path_to_data, x) for x in os.listdir(path_to_data) if x.endswith('.mps')]
+    np.random.seed(seed)
+
+    def generator():
+        while True:
+            for x in instances:
+                yield ecole.core.scip.Model.from_file(filepath=x)
+            np.random.shuffle(instances)
+
+    return generator()
 
 
 def generate_craballoc(

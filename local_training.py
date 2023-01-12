@@ -1,8 +1,8 @@
 import hydra
 import numpy as np
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 from env import EcoleBranching
-from tasks import make_instances
+from tasks import make_instances_from_folder
 from agent import DQNAgent, ReplayBuffer
 from tqdm import tqdm
 import os
@@ -37,7 +37,7 @@ def rollout(env, agent, replay_buffer, max_tree_size=100):
 def main(cfg: DictConfig):
     writer = SummaryWriter(os.getcwd())
 
-    env = EcoleBranching(make_instances(cfg))
+    env = EcoleBranching(make_instances_from_folder(cfg))
     env.seed(cfg.experiment.seed)
 
     agent = DQNAgent(device=cfg.experiment.device)

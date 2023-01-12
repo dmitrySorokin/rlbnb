@@ -29,7 +29,7 @@ class EcoleBranching(ecole.environment.Branching):
         }
 
         if obs_function is None:
-            obs_function = ecole.observation.NodeBipariteWith24VariableFeatures()
+            obs_function = NodeBipariteWith24VariableFeatures()
 
         super(EcoleBranching, self).__init__(
             observation_function=obs_function,

@@ -1,0 +1,22 @@
+defaults:
+  - _self_
+  - override hydra/hydra_logging: disabled
+  - override hydra/job_logging: disabled
+
+hydra:
+  output_subdir: null
+  run:
+    dir: .
+
+instances:
+  co_class: 'capacitated_facility_location'
+  co_class_kwargs:
+    'n_customers': 100
+    'n_facilities': 100
+
+experiment:
+  seed: 0
+  path_to_save: './outputs/cfl_inst_100_100'
+  branching: 'explore_then_strong_branch' # 'pure_strong_branch' 'explore_then_strong_branch'
+  min_samples: 10000
+  max_steps: null # None 3
